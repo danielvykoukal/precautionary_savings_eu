@@ -49,41 +49,10 @@ def say(line=""):
 
 def get_household_flows():
     """tidy [year, na_item, value(EUR mn)] for euro-area household net
-    acquisition of financial assets."""
-    long = cm.es_long("nasa_10_f_tr")
-    long["value"] = pd.to_numeric(long["value"], errors="coerce")
-    long = long.dropna(subset=["value"])
-    cm.show_dims(long, "nasa_10_f_tr")
-
-    if "sector" in long.columns:
-        sec = next((s for s in ("S14_S15", "S14") if s in set(long["sector"])), None)
-        if sec is None:
-            raise RuntimeError("nasa_10_f_tr: household sector S14/S14_S15 not found")
-        long = long[long["sector"] == sec]
-    if "co_nco" in long.columns:
-        for cc in ("NCO", "CO"):
-            if cc in set(long["co_nco"]):
-                long = long[long["co_nco"] == cc]
-                break
-    if "finpos" in long.columns:
-        for fp in ("ASS", "A"):
-            if fp in set(long["finpos"]):
-                long = long[long["finpos"] == fp]
-                break
-    if "unit" in long.columns:
-        for u in ("MIO_EUR", "CP_MEUR", "MIO_NAC"):
-            if u in set(long["unit"]):
-                long = long[long["unit"] == u]
-                break
-    geo = next((g for g in ("EA20", "EA19", "EA", "EU27_2020")
-                if g in set(long["geo"])), None)
-    if geo is None:
-        raise RuntimeError("nasa_10_f_tr: no euro-area aggregate geo")
-    long = long[long["geo"] == geo]
-    long["year"] = long["time"].str.extract(r"(\d{4})").astype(float)
-    long = long.dropna(subset=["year"])
+    acquisition of financial assets (shared helper in _common)."""
+    long, geo = cm.household_flows()
     say(f"  using euro-area geo = {geo}")
-    return long[["year", "na_item", "value"]], geo
+    return long, geo
 
 
 def build(long):

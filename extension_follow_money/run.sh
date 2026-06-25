@@ -13,7 +13,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${PYTHON:-python3}"
 cd "$HERE"
 
-for s in follow_the_money.py saving_vs_rates_reversal.py; do
+for s in follow_the_money.py net_flows_by_asset.py total_vs_saving.py \
+         plot_tilt_vs_saving.py tilt_vs_rates.py saving_vs_rates_reversal.py \
+         composition_econometrics.py; do
     echo ">> $s"
     "$PYTHON" "$s"
     echo

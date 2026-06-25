@@ -53,6 +53,15 @@
         run the pipeline (\code{02\_make\_figures.py}) to generate it.}}}
     \caption{#3}\label{fig:#2}
   \end{figure}}
+% Figures produced by the follow-the-money extension.
+\newcommand{\extfig}[3]{% {width-fraction}{file-without-ext}{caption}
+  \begin{figure}[htbp]\centering
+    \IfFileExists{extension_follow_money/figures/#2.png}
+      {\includegraphics[width=#1\linewidth]{extension_follow_money/figures/#2}}
+      {\fbox{\parbox{0.78\linewidth}{\centering\itshape figure not found ---
+        run \code{extension\_follow\_money/run.sh} to generate it.}}}
+    \caption{#3}\label{fig:#2}
+  \end{figure}}
 
 \title{\textbf{Precautionary Saving in Europe}\\[2pt]
        \large Data, Pipeline, and Econometric Methodology}
@@ -73,9 +82,13 @@ reproducible three-stage software pipeline, (ii) every data series used, with an
 explicit justification of its source, frequency, length, units, and treatment,
 and (iii) the econometric strategy in full detail: stationarity classification,
 the ARDL bounds test for a long-run relationship, Granger causality, and a
-structural VAR with orthogonalised impulse responses. Reported figures come from
-a clean end-to-end run; they are produced live and may be revised by the data
-providers, so they should be regenerated before citation.
+structural VAR with orthogonalised impulse responses. A final section turns to
+the \emph{composition} of saving --- a ``follow-the-money'' test that, unlike the
+level analysis, can separate a yield-chasing reaction to ECB rates from a
+precautionary one, and finds the post-2022 reallocation is far more likely the
+former. Reported figures come from a clean end-to-end run; they are produced live
+and may be revised by the data providers, so they should be regenerated before
+citation.
 \end{abstract}
 
 \tableofcontents
@@ -609,6 +622,189 @@ with each proxy, in levels (left) and changes (right). $k>0$: proxy leads saving
 COVID 2020 dropped.}
 
 % ============================================================================
+\section{Did rates or fear drive it? The follow-the-money test}\label{sec:followmoney}
+% ============================================================================
+
+The methodology of Section~\ref{sec:econ} targets the \emph{level} of the saving
+rate and returns nulls: with so few quarters and three drivers moving together
+after 2022, no test can cleanly assign the rise to precaution. This section asks a
+different, sharper question --- about the \emph{composition} of saving rather than
+its level --- where the precautionary and the ``yield-chasing'' (intertemporal-%
+substitution) explanations make \emph{opposite} predictions and can therefore be
+separated. The analysis lives in \code{extension\_follow\_money/}.
+
+\subsection{The discriminating idea: where the money goes}
+Fear and yield make opposite predictions about \emph{where} households park new
+saving. Precaution favours liquid, instant-access assets (the buffer must be
+reachable in an emergency); yield-chasing favours higher-paying but less-liquid
+ones. We split households' annual net acquisition of financial assets (Eurostat
+\dataset{nasa\_10\_f\_tr}, sector S14\_S15, euro area, current-price flows) into
+two buckets and track the \emph{tilt} between them:
+\begin{align*}
+\text{instant-access} &= \text{currency (F21)} + \text{overnight deposits (F22)},\\
+\text{locked-for-yield} &= \text{time deposits (F29)} + \text{bonds (F3)},\\
+\text{tilt}_t &= \text{locked-for-yield}_t - \text{instant-access}_t \quad(\text{EUR bn/yr}).
+\end{align*}
+A positive tilt means that year's saving leaned toward yield; negative, toward
+instant cash.
+
+\subsection{Linking the asset flows back to the saving rate}
+The tilt is a \emph{composition} measure, so it does not map to the saving rate on
+its own. The bridge is an accounting identity: when a household saves, the money
+flows into financial assets, into housing, or into paying down debt; the part going
+into financial assets is exactly the \emph{sum of all the asset-type flows we
+decompose}, and the tilt is \emph{where within that sum} the money leans. So if the
+decomposition is legitimate, combining all the buckets should track the saving
+rate.
+
+It does. Summing the asset flows and scaling by household gross disposable income
+($B6G$, Eurostat \dataset{nasa\_10\_nf\_tr}) gives a series that correlates
+$+0.87$ with the saving rate in levels and $+0.73$ as a share of income; both
+spike in 2020, dip in 2022--23, and recover. As a reconciliation, rebuilding the
+rate from the raw income accounts (gross saving $B8G$ over disposable income
+$B6G$) reproduces the published saving rate almost exactly (correlation $+1.00$;
+Table~\ref{tab:reconcile}). The combined-flows line sits a few points \emph{below}
+the saving rate --- the wedge is mainly housing investment, which saving funds but
+is not a financial asset --- yet the two clearly co-move
+(Figure~\ref{fig:total_vs_saving}). This places the composition analysis firmly
+inside the saving story: the tilt describes \emph{how the saving in the headline
+rate was deployed}.
+
+\begin{table}[htbp]\centering
+\caption{Reconciliation: the rate rebuilt from the income accounts ($B8G/B6G$)
+matches the published saving rate, and the combined financial-asset flow tracks it
+(all in \% of disposable income).}
+\label{tab:reconcile}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+year & combined flows & saving rate ($B8G/B6G$) & saving rate (published) \\
+\midrule
+2020 & 15.0 & 19.7 & 19.5 \\
+2022 &  8.8 & 13.6 & 13.5 \\
+2023 &  6.9 & 14.4 & 14.2 \\
+2025 &  9.3 & 15.0 & 14.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\extfig{0.9}{total_vs_saving}{Combining all the asset flows reproduces the
+saving-rate path. Navy: the published household saving rate. Green dashed: the sum
+of all net financial-asset flows, as a share of disposable income. They co-move
+($\mathrm{corr}=+0.73$); the roughly constant gap is housing investment.}
+
+\subsection{Descriptive evidence}
+The destination of saving flipped after the ECB began raising rates in mid-2022.
+The share of yearly financial saving going into instant-access cash fell from
+about 66\% (2015--19) to about 2\% (2022--25), while net household \emph{bond}
+purchases went from negative (net selling of roughly EUR 40--50 bn/yr in 2019--21)
+to +EUR 96 bn (2022) and +EUR 311 bn (2023). Households went from shunning bonds
+to buying them in record size precisely as yields rose --- the reach-for-yield
+pattern, and the opposite of the 2020 COVID episode, when saving piled into
+instant-access cash (the precautionary pattern). The tilt correlates $+0.79$ with
+the ECB policy rate (annual). Figures~\ref{fig:tilt_vs_saving}
+and~\ref{fig:tilt_vs_rates} show the picture.
+
+\extfig{0.95}{tilt_vs_saving}{Composition tilt (bars; locked-for-yield minus
+instant-access, EUR bn/yr) against the household saving rate (line). The saving
+\emph{level} stays high throughout --- peaking in the COVID year, when the tilt is
+most negative (cash) --- while the \emph{composition} flips to yield (red) once
+rates rise. Regimes shaded as in chart~A: the zero-lower-bound era, COVID forced
+saving, and the post-2022 period of interest.}
+
+\extfig{0.95}{tilt_vs_rates}{The composition tilt (bars) against the ECB policy
+rate (line); the two move together, $\mathrm{corr}=+0.79$ over 2002--2025.}
+
+\subsection{A model comparison: rates/inflation versus precaution}
+Because the tilt is signed, the two stories give opposite, testable predictions.
+We regress the tilt on the ECB rate, inflation, and an uncertainty proxy (the
+Geopolitical Risk index, GPR), each standardised to a $z$-score so the
+coefficients are comparable (the effect of a one-standard-deviation move, in
+EUR bn):
+\begin{equation}
+\text{tilt}_t = \beta_0 + \beta_1 \widetilde{r}_t + \beta_2 \widetilde{\pi}_t
+              + \beta_3 \widetilde{u}_t + \varepsilon_t,
+\label{eq:tilt}
+\end{equation}
+with $\widetilde r$ the rate, $\widetilde\pi$ inflation, $\widetilde u$
+uncertainty. The competing hypotheses are sharp:
+\[
+\text{yield-chasing} \;\Rightarrow\; \beta_1 > 0, \qquad
+\text{precaution} \;\Rightarrow\; \beta_3 < 0
+\]
+(more uncertainty should push saving \emph{toward} instant cash, a more negative
+tilt). Standard errors are heteroskedasticity-robust (HC3), appropriate for the
+small sample.
+
+\paragraph{How the models are ranked.} The ``rates+inflation'' and ``precaution''
+models are \emph{non-nested} --- neither is a special case of the other --- so
+they cannot be compared with an ordinary $F$-test. We use the Akaike Information
+Criterion,
+\begin{equation}
+\mathrm{AIC}_m = 2k_m - 2\ln \hat{L}_m,
+\end{equation}
+where $k_m$ is the number of parameters and $\hat L_m$ the maximised likelihood of
+model $m$; lower is better (it rewards fit and penalises extra parameters). Raw
+AIC values are not interpretable alone, so we convert them to \emph{Akaike
+weights},
+\begin{equation}
+\Delta_m = \mathrm{AIC}_m - \min_j \mathrm{AIC}_j, \qquad
+w_m = \frac{\exp(-\tfrac12\Delta_m)}{\sum_j \exp(-\tfrac12\Delta_j)} .
+\end{equation}
+Each $w_m$ is the probability that model $m$ is the best (Kullback--Leibler) model
+in the candidate set --- exactly the ``how much more likely is rates/inflation
+than precaution?'' statement we want.
+
+\subsection{Results}
+Table~\ref{tab:compecon} reports the three models for the tilt (annual levels,
+$n=24$).
+
+\begin{table}[htbp]\centering
+\caption{Composition tilt on standardised drivers (annual, 2002--2025, $n=24$;
+HC3 robust SEs). Coefficients in EUR bn per one-standard-deviation of the driver;
+$^{*}$ denotes significance at 5\%. Akaike weights are computed across the three
+models. Inflation enters positively but is insignificant throughout.}
+\label{tab:compecon}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+model & adj.\ $R^2$ & AIC & rate ($\beta_1$) & uncertainty ($\beta_3$) & Akaike weight \\
+\midrule
+rates $+$ inflation & 0.74 & 329.8 & $+278^{*}$ & --- & 25\% \\
+precaution (GPR)    & 0.02 & 360.5 & --- & $+103$ & $\approx 0\%$ \\
+all three           & 0.77 & 327.5 & $+304^{*}$ & $-96$ & 75\% \\
+\midrule
+\multicolumn{6}{@{}l}{\footnotesize head-to-head (rates$+$inflation vs.\ precaution): $\approx 100\%$ vs.\ $\approx 0\%$}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The reading is unambiguous. The ECB rate is the dominant driver: a
+one-standard-deviation rate increase shifts the tilt by roughly +EUR 280--300 bn
+toward yield, significant at 5\%. The precaution model is almost empty (adjusted
+$R^2 \approx 0.02$), and its uncertainty coefficient has the \emph{wrong} sign for
+precaution and is insignificant. Head-to-head, the Akaike weights put essentially
+$100\%$ on rates+inflation versus $0\%$ on precaution. Using net bond purchases as
+the dependent variable gives the same verdict (rate coefficient $+$, $p=0.01$;
+$100\%$ vs.\ $0\%$); there, uncertainty looks significant \emph{on its own} but
+collapses to zero once the rate is included --- a textbook confounder, with
+uncertainty merely standing in for rates.
+
+\subsection{Robustness and scope}
+Regressing levels of trending series can manufacture significance, so we
+re-estimate \eqref{eq:tilt} in first differences. The rate coefficient keeps the
+right (positive) sign but loses significance ($p\approx0.13$) on $n=23$ noisy
+annual changes; the model \emph{ranking} is nonetheless unchanged --- precaution
+still receives essentially zero Akaike weight. Two caveats bound the claim. The
+sample is small ($\sim$24 annual euro-area observations) and the 2023 bond surge
+is a high-leverage point; robust errors and the differenced re-run mitigate but do
+not remove this. And, most important, this test concerns the \emph{composition} of
+saving --- \emph{how} households deployed it --- not the \emph{level} of the saving
+rate: it shows the reallocation of saving is far more likely a reaction to rates
+and inflation than to precaution, but does not by itself explain why the aggregate
+rate rose, which stays overdetermined (Section~\ref{sec:econ}).
+
+% ============================================================================
 \section{Interpretation}\label{sec:interpretation}
 % ============================================================================
 
@@ -634,7 +830,11 @@ The overall verdict is intentionally measured: the precautionary story is
 \emph{plausible and consistent with the data}, but the time-series evidence is
 not strong enough to claim a clean causal channel---which is why the descriptive
 charts and the econometrics are presented together rather than one standing in
-for the other.
+for the other. On the narrower question of \emph{how} households saved, however,
+the evidence is sharper: the follow-the-money test (Section~\ref{sec:followmoney})
+finds the post-2022 reallocation toward yield is far more likely a reaction to
+rates and inflation than to precaution --- a statement the level data alone cannot
+support.
 
 % ============================================================================
 \section{Limitations and caveats}\label{sec:limits}
@@ -657,6 +857,10 @@ for the other.
   \item \textbf{Editorial exposure grouping.} The red/blue Russia-energy split in
   leg~B is a simplification; the continuous energy-inflation axis is the rigorous
   version.
+  \item \textbf{Composition vs.\ level.} The follow-the-money test
+  (Section~\ref{sec:followmoney}) speaks to \emph{how} saving was allocated, not
+  \emph{why} the aggregate rate rose, and rests on $\sim$24 annual observations
+  with a high-leverage 2023.
   \item \textbf{Vintages.} All series are pulled live and revised by providers;
   regenerate before citing any number.
 \end{itemize}
@@ -675,6 +879,8 @@ run_all.sh             # pip install + run 01->02->03 (classic Python, no venv)
 requirements.txt       # pinned dependencies
 data/                  # generated tidy CSVs
 figures/               # generated charts
+extensions/            # identification extensions (panel FE, event study, ...)
+extension_follow_money/# follow-the-money composition tests + econometrics (Sec. 6)
 findings.md            # narrative write-up of the results
 documentation.tex      # this document
 legacy/                # superseded original scripts (safe to delete)

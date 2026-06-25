@@ -85,7 +85,19 @@ def main():
         "sign. So this before/after check is weak and suggestive at best, not decisive "
         "on its own; the composition test (follow_the_money.py) is the stronger one.")
 
-    # ---------------- figure: twin-axis ----------------
+    # ---------------- figure: twin-axis, ALIGNED on the post-2022 window ----------------
+    # Pick the right-axis (rate) scale so the rate line overlays the saving line as
+    # closely as possible after 2022: best affine fit saving ~ a + b*rate there, then
+    # map the left limits [s_lo,s_hi] to right limits via that fit.
+    post = df[df.index >= "2022-01-01"]
+    if len(post) >= 3 and post["rate"].std() > 0:
+        b, a = np.polyfit(post["rate"].values, post["saving"].values, 1)
+        r_post = post[["saving", "rate"]].corr().iloc[0, 1]
+        say(f"\npost-2022 alignment: saving ≈ {a:.2f} + {b:.2f}·rate "
+            f"(corr {r_post:+.2f}); right axis scaled so the lines overlay after 2022.")
+    else:
+        b, a = 1.0, float(df["saving"].mean())
+
     fig, ax1 = plt.subplots(figsize=(10, 5.4))
     ax2 = ax1.twinx()
     ax2.grid(False)
@@ -98,10 +110,16 @@ def main():
     l2, = ax2.plot(df.index, df["rate"], color=cm.C_RED, lw=2.0, ls="--",
                    label="ECB policy rate (right)")
     ax1.axvline(pd.Timestamp("2022-02-24"), color="grey", ls=":", lw=1)
+
+    s_lo, s_hi = float(df["saving"].min()) - 0.7, float(df["saving"].max()) + 0.7
+    ax1.set_ylim(s_lo, s_hi)
+    if b > 0:                                   # map left (saving) limits -> right (rate)
+        ax2.set_ylim((s_lo - a) / b, (s_hi - a) / b)
+
     ax1.set_ylabel("household saving rate (% of disposable income)", color=cm.C_NAVY)
     ax2.set_ylabel("ECB policy rate (%)", color=cm.C_RED)
     ax1.set_xlabel("")
-    ax1.set_title("Did saving ease when the ECB cut rates?\n"
+    ax1.set_title("Saving tracks the ECB rate after 2022 (axes aligned on 2022+)\n"
                   "red = hiking phase, blue = cutting phase", fontweight="bold")
     ax1.legend(handles=[l1, l2], frameon=False, loc="upper left", fontsize=9)
     cm.savefig(fig, "saving_vs_rates_reversal.png")

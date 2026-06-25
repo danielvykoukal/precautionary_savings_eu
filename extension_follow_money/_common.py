@@ -101,6 +101,52 @@ def load_quarterly(name, valcol):
     return s.resample("QS").mean()
 
 
+def household_flows():
+    """Euro-area household net acquisition of financial assets, tidy
+    [year, na_item, value(EUR mn)] + geo. Source: Eurostat nasa_10_f_tr, sector
+    S14(_S15), assets side, non-consolidated, current-price millions."""
+    long = es_long("nasa_10_f_tr")
+    long["value"] = pd.to_numeric(long["value"], errors="coerce")
+    long = long.dropna(subset=["value"])
+    if "sector" in long.columns:
+        sec = next((s for s in ("S14_S15", "S14") if s in set(long["sector"])), None)
+        if sec is None:
+            raise RuntimeError("nasa_10_f_tr: household sector S14/S14_S15 not found")
+        long = long[long["sector"] == sec]
+    if "co_nco" in long.columns:
+        for cc in ("NCO", "CO"):
+            if cc in set(long["co_nco"]):
+                long = long[long["co_nco"] == cc]
+                break
+    if "finpos" in long.columns:
+        for fp in ("ASS", "A"):
+            if fp in set(long["finpos"]):
+                long = long[long["finpos"] == fp]
+                break
+    if "unit" in long.columns:
+        for u in ("MIO_EUR", "CP_MEUR", "MIO_NAC"):
+            if u in set(long["unit"]):
+                long = long[long["unit"] == u]
+                break
+    geo = next((g for g in ("EA20", "EA19", "EA", "EU27_2020")
+                if g in set(long["geo"])), None)
+    if geo is None:
+        raise RuntimeError("nasa_10_f_tr: no euro-area aggregate geo")
+    long = long[long["geo"] == geo]
+    long["year"] = long["time"].str.extract(r"(\d{4})").astype(float)
+    long = long.dropna(subset=["year"])
+    long["year"] = long["year"].astype(int)
+    return long[["year", "na_item", "value"]], geo
+
+
+def annual_mean(name, valcol):
+    """Read a [date, value] CSV from ../data -> Series indexed by year (annual mean)."""
+    s = load_quarterly(name, valcol)
+    out = s.groupby(s.index.year).mean()
+    out.index.name = "year"
+    return out.rename(valcol)
+
+
 def savefig(fig, name):
     out = os.path.join(FIG, name)
     fig.savefig(out, bbox_inches="tight")
