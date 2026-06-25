@@ -1,0 +1,10 @@
+# Pinned to the versions this project was verified against (Python 3.11–3.13).
+pandas==2.3.3
+numpy==2.2.6
+matplotlib==3.10.6
+statsmodels==0.14.5
+scipy==1.16.2
+requests==2.32.5
+eurostat==1.1.1
+openpyxl==3.1.5
+xlrd==2.0.1          # reads the Caldara-Iacoviello GPR .xls (old Excel format)

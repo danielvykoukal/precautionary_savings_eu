@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Claude Code local settings (machine-specific)
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# LaTeX build artifacts (documentation.pdf itself is kept)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
