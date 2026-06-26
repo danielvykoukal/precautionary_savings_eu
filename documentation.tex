@@ -736,66 +736,61 @@ uncertainty. The competing hypotheses are sharp:
 tilt). Standard errors are heteroskedasticity-robust (HC3), appropriate for the
 small sample.
 
-\paragraph{How the models are ranked.} The ``rates+inflation'' and ``precaution''
-models are \emph{non-nested} --- neither is a special case of the other --- so
-they cannot be compared with an ordinary $F$-test. We use the Akaike Information
-Criterion,
-\begin{equation}
-\mathrm{AIC}_m = 2k_m - 2\ln \hat{L}_m,
-\end{equation}
-where $k_m$ is the number of parameters and $\hat L_m$ the maximised likelihood of
-model $m$; lower is better (it rewards fit and penalises extra parameters). Raw
-AIC values are not interpretable alone, so we convert them to \emph{Akaike
-weights},
-\begin{equation}
-\Delta_m = \mathrm{AIC}_m - \min_j \mathrm{AIC}_j, \qquad
-w_m = \frac{\exp(-\tfrac12\Delta_m)}{\sum_j \exp(-\tfrac12\Delta_j)} .
-\end{equation}
-Each $w_m$ is the probability that model $m$ is the best (Kullback--Leibler) model
-in the candidate set --- exactly the ``how much more likely is rates/inflation
-than precaution?'' statement we want.
+\paragraph{Letting the drivers compete.} Rather than lean on information criteria,
+we simply let the three drivers compete in a single regression and read the result
+two ways: (i) which coefficient is statistically significant once all are
+included, and (ii) how much of the year-to-year variation each story explains on
+its own ($R^2$). The regression table (Table~\ref{tab:compecon}) does the rest.
 
 \subsection{Results}
-Table~\ref{tab:compecon} reports the three models for the tilt (annual levels,
-$n=24$).
+Table~\ref{tab:compecon} is the horse race for the tilt (annual, $n=24$). The
+reading is unambiguous. With all drivers included, \emph{only the ECB rate is
+significant} ($+304$, $p\approx0.02$); inflation is not, and uncertainty is not
+--- and uncertainty carries the \emph{wrong} sign for precaution. The lopsided fit
+says the same: the rates+inflation model explains about $74\%$ of the tilt's
+year-to-year variation (adjusted $R^2$), the precaution model about $2\%$. Using
+net bond purchases as the dependent variable gives the same verdict (rate $+62$,
+$p\approx0.03$); there uncertainty even looks significant \emph{on its own}
+($+43$, $p\approx0.02$) but collapses to zero once the rate is included --- a
+textbook confounder, with uncertainty merely standing in for rates.
 
 \begin{table}[htbp]\centering
-\caption{Composition tilt on standardised drivers (annual, 2002--2025, $n=24$;
-HC3 robust SEs). Coefficients in EUR bn per one-standard-deviation of the driver;
-$^{*}$ denotes significance at 5\%. Akaike weights are computed across the three
-models. Inflation enters positively but is insignificant throughout.}
+\caption{The composition tilt, explained: a horse race (annual, 2002--2025).
+Dependent variable: net flow into locked-for-yield minus instant-access
+(EUR bn/yr). Drivers standardised to $z$-scores, so each coefficient is EUR bn per
+one-standard-deviation move. HC3 robust standard errors in parentheses.}
 \label{tab:compecon}
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}lccccc@{}}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}lccc@{}}
 \toprule
-model & adj.\ $R^2$ & AIC & rate ($\beta_1$) & uncertainty ($\beta_3$) & Akaike weight \\
+ & \multicolumn{3}{c}{\emph{Dependent variable:} composition tilt}\\
+\cmidrule(lr){2-4}
+ & (1) rates$+$infl & (2) precaution & (3) all\\
 \midrule
-rates $+$ inflation & 0.74 & 329.8 & $+278^{*}$ & --- & 25\% \\
-precaution (GPR)    & 0.02 & 360.5 & --- & $+103$ & $\approx 0\%$ \\
-all three           & 0.77 & 327.5 & $+304^{*}$ & $-96$ & 75\% \\
+ECB rate          & $278.3^{**}$ &            & $303.6^{**}$\\
+                  & $(123.3)$    &            & $(125.6)$\\
+Inflation         & $160.9$      &            & $193.5$\\
+                  & $(231.0)$    &            & $(194.9)$\\
+Uncertainty (GPR) &              & $103.3$    & $-95.5$\\
+                  &              & $(65.6)$   & $(83.9)$\\
+Constant          & $-123.5^{*}$ & $-123.5$   & $-123.5^{*}$\\
+                  & $(70.9)$     & $(88.6)$   & $(66.7)$\\
 \midrule
-\multicolumn{6}{@{}l}{\footnotesize head-to-head (rates$+$inflation vs.\ precaution): $\approx 100\%$ vs.\ $\approx 0\%$}\\
+$N$               & 24    & 24   & 24\\
+$R^2$             & 0.76  & 0.06 & 0.80\\
+Adjusted $R^2$    & 0.74  & 0.02 & 0.77\\
 \bottomrule
+\multicolumn{4}{@{}l}{\footnotesize $^{*}\,p<0.1$,\; $^{**}\,p<0.05$,\; $^{***}\,p<0.01$.}\\
 \end{tabular}
 \end{table}
-
-The reading is unambiguous. The ECB rate is the dominant driver: a
-one-standard-deviation rate increase shifts the tilt by roughly +EUR 280--300 bn
-toward yield, significant at 5\%. The precaution model is almost empty (adjusted
-$R^2 \approx 0.02$), and its uncertainty coefficient has the \emph{wrong} sign for
-precaution and is insignificant. Head-to-head, the Akaike weights put essentially
-$100\%$ on rates+inflation versus $0\%$ on precaution. Using net bond purchases as
-the dependent variable gives the same verdict (rate coefficient $+$, $p=0.01$;
-$100\%$ vs.\ $0\%$); there, uncertainty looks significant \emph{on its own} but
-collapses to zero once the rate is included --- a textbook confounder, with
-uncertainty merely standing in for rates.
 
 \subsection{Robustness and scope}
 Regressing levels of trending series can manufacture significance, so we
 re-estimate \eqref{eq:tilt} in first differences. The rate coefficient keeps the
 right (positive) sign but loses significance ($p\approx0.13$) on $n=23$ noisy
-annual changes; the model \emph{ranking} is nonetheless unchanged --- precaution
-still receives essentially zero Akaike weight. Two caveats bound the claim. The
+annual changes; the \emph{ranking} is unchanged, though --- the rate still
+dominates the fit while uncertainty stays insignificant and wrong-signed. Two
+caveats bound the claim. The
 sample is small ($\sim$24 annual euro-area observations) and the 2023 bond surge
 is a high-leverage point; robust errors and the differenced re-run mitigate but do
 not remove this. And, most important, this test concerns the \emph{composition} of

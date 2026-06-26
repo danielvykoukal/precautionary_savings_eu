@@ -27,7 +27,7 @@ others read), or just `bash run.sh`.
 | `plot_tilt_vs_saving.py` | The composition tilt vs the saving rate, with ZLB / COVID / period-of-interest regimes | `follow_the_money.csv` + `../data` saving |
 | `tilt_vs_rates.py` | The tilt vs the ECB rate, and their correlation | `follow_the_money.csv` + `../data` ECB rate |
 | `saving_vs_rates_reversal.py` | Did saving track the ECB rate (axes aligned on the post-2022 window)? | `../data` saving rate + ECB rate |
-| `composition_econometrics.py` | **Is the tilt better explained by rates/inflation or by precaution?** (model comparison, Akaike weights) | `follow_the_money.csv` + `../data` rate/inflation/GPR |
+| `composition_econometrics.py` | **Is the tilt better explained by rates/inflation or by precaution?** (horse-race regression + R²; stargazer-style table) | `follow_the_money.csv` + `../data` rate/inflation/GPR |
 
 ## What we found (clean run — regenerate before citing)
 
@@ -55,20 +55,22 @@ corr ≈ +0.71.)
 **Tilt vs rates — strong.** The composition tilt (locked-for-yield minus
 instant-access) correlates **+0.79** with the ECB policy rate (annual).
 
-**Econometrics — rates/inflation vs precaution (model comparison).** We regress
-the tilt (and net bond purchases) on the ECB rate, inflation, and a precaution
-proxy (GPR), and compare a *rates+inflation* model against a *precaution* model
-with Akaike weights (a probability that each is the best in the set):
+**Econometrics — rates/inflation vs precaution (a horse race).** We regress the
+tilt (and net bond purchases) on the ECB rate, inflation, and a precaution proxy
+(GPR), let all three compete in one regression, and read off (i) which coefficient
+survives and (ii) how much each story explains ($R^2$). See the stargazer-style
+table printed by the script.
 
-- The tilt: rates+inflation model adj-R² ≈ 0.74 (rate coef **+, p≈0.02**) vs the
-  precaution model adj-R² ≈ 0.02. **Akaike weight: ~100% rates/inflation vs ~0%
-  precaution.** In the combined model uncertainty is insignificant.
-- Net bond purchases: same verdict (rate coef +, p≈0.01; ~100% vs 0%).
-- In first differences the rate coefficient is right-signed but no longer
-  significant (p≈0.13 — small-sample power), yet precaution still gets ~0% weight.
+- The tilt: with all drivers in, **only the ECB rate is significant (+304, p≈0.02)**;
+  inflation isn't, and uncertainty isn't (and is wrong-signed for precaution). The
+  rates+inflation model explains **~74%** of the variation; the precaution model **~2%**.
+- Net bond purchases: same verdict (rate **+62, p≈0.03**); uncertainty looks
+  significant *alone* but collapses once the rate is added — a confounder.
+- In first differences the rate is right-signed but loses significance (p≈0.13 —
+  small-sample power); the ranking is unchanged.
 
 So we *can* make the statistical statement: on this data the reallocation of
-saving is far more likely a reaction to rates/inflation than to precaution.
+saving is a reaction to rates/inflation, not to precaution.
 
 **Link to the saving rate.** The tilt is a *composition* measure, so it doesn't
 map to the saving rate directly. The bridge is that **summing all the asset flows
