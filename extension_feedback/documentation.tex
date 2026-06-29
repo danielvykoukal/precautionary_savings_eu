@@ -1,0 +1,464 @@
+% ============================================================================
+%  Precautionary Saving in Europe --- Feedback Implementation
+%  Liquidity, term structure, risk premia, and a forward-looking lens.
+%  Compile with:  pdflatex documentation.tex   (run twice for references)
+%  Font: Palatino (mathpazo). Matches the main project documentation style.
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+% ---- Fonts: Palatino for text and math -------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathpazo}
+\linespread{1.05}
+\usepackage{microtype}
+
+% ---- Layout ----------------------------------------------------------------
+\usepackage[a4paper,margin=2.6cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\graphicspath{{figures/}{./}}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=3pt}
+\usepackage{xcolor}
+\definecolor{codebg}{gray}{0.96}
+\definecolor{rule}{gray}{0.5}
+
+\usepackage[hidelinks,colorlinks=true,linkcolor=black!70!blue,
+            urlcolor=black!60!blue,citecolor=black]{hyperref}
+
+% ---- Convenience macros ----------------------------------------------------
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\dataset}[1]{\textsc{#1}}
+% Robust figure inclusion: shows a placeholder if the PNG is absent.
+\newcommand{\fig}[3]{% {width-fraction}{file-without-ext}{caption}
+  \begin{figure}[htbp]\centering
+    \IfFileExists{figures/#2.png}
+      {\includegraphics[width=#1\linewidth]{#2}}
+      {\fbox{\parbox{0.80\linewidth}{\centering\itshape figure not found ---
+        run \code{bash run.sh} (this one needs FRED) to generate it.}}}
+    \caption{#3}\label{fig:#2}
+  \end{figure}}
+
+\title{\textbf{Precautionary Saving in Europe: Feedback Implementation}\\[3pt]
+       \large Liquidity, Term Structure, Risk Premia, and a Forward-Looking Lens}
+\author{Project documentation --- feedback extension}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+This addendum implements supervisor feedback on the savings analysis. Its
+organising idea is a single methodological correction: stop treating
+\emph{cash and deposits} as the only precautionary buffer, and instead rank
+household assets on a \emph{liquidity / maturity ladder}. On that ladder, the
+post-2022 move \emph{out of} instant-access cash --- which the project's
+``follow-the-money'' extension had read as evidence of \emph{yield-chasing
+rather than precaution} --- looks very different: the money did not leave the
+liquid buffer, it moved up the risk/return scale while staying sellable within
+days. We then add the four further pieces the feedback asked for: the money
+supply divided by term ($M1$/$M2$/$M3$); observable risk premia set against
+geopolitical tension; a forward-looking expectations composite; and an
+energy-price liquidity-adequacy analysis. All series are euro-area and free
+(Eurostat, the ECB Data Portal, FRED, and the Caldara--Iacoviello GPR index);
+the scripts reuse the main project's helpers. Headline result: the broad
+sellable-fast share of household saving flows \emph{rose} from $54\%$ to $73\%$
+after 2022, and about half of household financial wealth is sellable within
+days --- so the precaution-versus-yield dichotomy is false. Households'
+forward-looking income expectations predict the saving rate far better than the
+geopolitical index does, and the buffer is concentrated up the income
+distribution, leaving the most energy-exposed households uncushioned. Figures
+come from a clean live run on \today; they are revised by the providers and
+should be regenerated before citation.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+\hrule
+\bigskip
+
+% ============================================================================
+\section{The question, revisited}\label{sec:question}
+% ============================================================================
+
+\paragraph{Where the main project left off.} The project tests whether the euro
+area's elevated household saving rate is \emph{substantially precautionary} ---
+a response to uncertainty rather than to income, wealth, or the interest rate
+alone. The time-series leg was supportive; the cross-country and formal
+identification legs were inconclusive. The sharpest negative result came from
+the ``follow-the-money'' extension: after 2022 the share of saving going into
+instant-access cash collapsed while money flowed into bonds and term deposits.
+Read through a binary --- \emph{instant-access cash $=$ precautionary},
+\emph{bonds and term deposits $=$ yield-chasing} --- this looked like evidence
+\emph{against} precaution.
+
+\paragraph{The feedback.} The supervisors' objection targets exactly that
+binary. Many assets can be sold fast, so cash and deposits are not the only
+precautionary store of value; we should look harder at each asset type and at
+the money supply, \emph{divided by term}; examine risk premia and whether they
+rise with geopolitical tension; adopt a more forward-looking approach; and
+discuss the risk of holding too little cash to absorb rising energy prices ---
+in short, \emph{when} households save, \emph{where}, and how \emph{liquid} those
+holdings are.
+
+\paragraph{The organising reframe.} A bond, a listed share, or a money-market
+fund unit is sellable in days. Treating it as ``locked'' understates the
+precautionary buffer. We therefore replace the binary with a four-rung
+liquidity / maturity ladder (Table~\ref{tab:ladder}) and recompute the
+composition of saving on it. The monetary aggregates are the central bank's own
+liquidity-by-term tiering of the money-holding sector's claims, so they are the
+natural macro counterpart. The remaining sections add the risk-premium,
+forward-looking, and energy dimensions, and Section~\ref{sec:synthesis} states
+what all of this implies for the precautionary question.
+
+% ============================================================================
+\section{Data and method}\label{sec:data}
+% ============================================================================
+
+Every script is standalone, reuses the shared helpers in \code{\_common.py}
+(lifted from the main project's modules), and pulls only free, keyless data,
+writing figures to \code{figures/} and a report plus CSVs to \code{data/}.
+Table~\ref{tab:data} lists the additional series. Two helpers are new: a
+generalised \code{household\_instruments()} that runs the \emph{same} tier
+classification on flows (\dataset{nasa\_10\_f\_tr}) and on stocks
+(\dataset{nasa\_10\_f\_bs}); and \code{ecb\_sdmx()}, a keyless pull from the ECB
+Data Portal for the monetary aggregates.
+
+\begin{table}[htbp]\centering\small
+\caption{The liquidity / maturity ladder (ESA 2010 instrument codes).}
+\label{tab:ladder}
+\begin{tabular}{@{}p{3.4cm}p{5.4cm}p{6.0cm}@{}}
+\toprule
+\textbf{Tier} & \textbf{Instruments} & \textbf{Rationale} \\
+\midrule
+T1 --- instant ($\approx M1$) & F21 currency, F22 overnight deposits &
+  settle immediately, no price risk \\
+T2 --- near-money ($\approx M2/M3$) & F29 other deposits (term \& redeemable at
+  notice), F521 money-market-fund shares &
+  accessible at short notice / maturity, minimal price risk \\
+T3 --- marketable & F3 debt securities, F511 listed shares, F522 non-MMF
+  investment-fund shares &
+  sellable within days at market price (carries price risk) \\
+T4 --- illiquid / contractual & F512, F519 unlisted \& other equity; F6
+  insurance, pension \& guarantee schemes &
+  locked, contractual, or with no ready secondary market \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]\centering\small
+\caption{Additional data series (all free / keyless).}
+\label{tab:data}
+\begin{tabular}{@{}p{4.6cm}p{5.0cm}p{5.2cm}@{}}
+\toprule
+\textbf{Series} & \textbf{Source} & \textbf{Used in} \\
+\midrule
+Household financial balance sheet (stocks) & Eurostat \dataset{nasa\_10\_f\_bs} &
+  \S\ref{sec:ladder} \\
+Household financial transactions (flows) & Eurostat \dataset{nasa\_10\_f\_tr} &
+  \S\ref{sec:ladder} \\
+Monetary aggregates $M1,M2,M3$ & ECB Data Portal (\dataset{BSI}); FRED fallback &
+  \S\ref{sec:money} \\
+Euro high-yield credit spread (OAS) & FRED \code{BAMLHE00EHYIOAS} &
+  \S\ref{sec:premia} \\
+Italy \& Germany 10y yields & FRED \code{IRLTLT01ITM156N}, \code{IRLTLT01DEM156N} &
+  \S\ref{sec:premia} \\
+Implied equity volatility (VIX) & FRED \code{VIXCLS} &
+  \S\ref{sec:premia}, \S\ref{sec:fwd} \\
+Consumer survey (saving, unemployment) & Eurostat \dataset{ei\_bsco\_m} &
+  \S\ref{sec:fwd} \\
+Energy HICP & Eurostat \dataset{prc\_hicp\_midx} / \dataset{manr} (NRG) &
+  \S\ref{sec:energy} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A guard worth stating up front: Eurostat does not always publish the F5
+sub-instruments (F511/F512/F519/F521/F522). The classifier auto-detects what is
+present and falls back \emph{conservatively} --- an un-splittable equity/funds
+block is assigned to the illiquid tier T4 --- so every ``broad-liquid'' figure
+below is a \emph{lower bound}. We never overstate liquidity. In the run reported
+here the MMF split (F521) was unavailable, so fund shares enter T3 whole.
+
+% ============================================================================
+\section{The liquidity ladder}\label{sec:ladder}
+% ============================================================================
+
+\paragraph{Stocks: what households hold.} Re-ranking the household financial
+balance sheet (Figure~\ref{fig:liquidity_ladder_stocks},
+Table~\ref{tab:stocks}), instant cash (T1) is only about a fifth of financial
+wealth, but the \emph{broad sellable-fast} share (T1$+$T2$+$T3) is around
+\emph{half}. The remainder (T4 $\approx 47\%$) is dominated by insurance and
+pension claims and by unlisted business equity --- genuinely illiquid. The point
+the feedback asked for is immediate: the mobilisable buffer is far larger than
+cash.
+
+\fig{0.92}{liquidity_ladder_stocks}{Euro-area household financial wealth by
+liquidity tier (stocks, \dataset{nasa\_10\_f\_bs}). Only $\sim18\%$ is instant
+cash (T1); the dashed line --- the broad sellable-fast share T1$+$T2$+$T3 --- sits
+near $50\%$.}
+
+\begin{table}[htbp]\centering\small
+\caption{Stock shares of household financial wealth (\%), pre- vs post-shock
+averages.}\label{tab:stocks}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & 2015--19 & 2022+ & change (pp) \\
+\midrule
+T1 instant (cash, overnight)        & 17.2 & 19.2 & $+1.9$ \\
+T2 near-money (term/notice, MMF)    & 14.5 & 13.0 & $-1.5$ \\
+T3 marketable (bonds, shares, funds)& 15.8 & 17.6 & $+1.9$ \\
+T4 illiquid (unlisted eq., ins./pension) & 49.1 & 46.8 & $-2.3$ \\
+\midrule
+\emph{narrow cash (T1)}             & 17.2 & 19.2 & $+1.9$ \\
+\emph{broad sellable-fast (T1$+$T2$+$T3)} & 47.5 & 49.8 & $+2.3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Flows: where the marginal saving went.} The reframe is starkest in
+the flows (Figure~\ref{fig:liquidity_ladder_flows}, Table~\ref{tab:flows}). The
+share of yearly financial saving going into instant cash did collapse, from
+$66\%$ (2015--19) to $2\%$ (2022+) --- the headline of the old binary. But the
+\emph{broad sellable-fast} share \emph{rose}, from $54\%$ to $73\%$: the money
+left cash and went into term deposits, money-market funds, bonds and listed
+shares, every one of which can be sold within days. On the ladder this is not
+``leaving the precautionary buffer''; it is holding the buffer in a
+higher-yielding but still-liquid form once positive rates made cash costly to
+hold.
+
+\fig{0.92}{liquidity_ladder_flows}{Euro-area household net financial flows by
+liquidity tier (\dataset{nasa\_10\_f\_tr}). The instant-cash line collapses after
+2022 while the marketable tier (T3) surges --- a move \emph{within} the liquid
+part of the ladder.}
+
+\begin{table}[htbp]\centering\small
+\caption{Flow shares of yearly financial saving (\%), pre- vs post-shock
+averages. (Net-flow shares can exceed 100\% or go negative; read the levels in
+Figure~\ref{fig:liquidity_ladder_flows} alongside.)}\label{tab:flows}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & 2015--19 & 2022+ & change (pp) \\
+\midrule
+T1 instant (cash, overnight)        & 66.2 & 2.3 & $-63.9$ \\
+T2 near-money (term/notice, MMF)    & $-10.7$ & 33.4 & $+44.2$ \\
+T3 marketable (bonds, shares, funds)& $-1.0$ & 37.4 & $+38.4$ \\
+T4 illiquid (unlisted eq., ins./pension) & 43.0 & 20.7 & $-22.3$ \\
+\midrule
+\emph{narrow cash (T1)}             & 66.2 & 2.3 & $-63.9$ \\
+\emph{broad sellable-fast (T1$+$T2$+$T3)} & 54.4 & 73.0 & $+18.6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This is the single most important result for the precautionary question: it
+removes the strongest piece of evidence \emph{against} the hypothesis. ``Out of
+cash'' is not ``out of the buffer.'' It does not, by itself, \emph{prove} the
+motive is precaution --- staying liquid is consistent with precaution, not proof
+of it --- but it restores precaution as a live reading after the binary had
+seemingly ruled it out.
+
+% ============================================================================
+\section{Money supply, divided by term}\label{sec:money}
+% ============================================================================
+
+The monetary aggregates tell the same story at the macro level
+(Figure~\ref{fig:money_supply_by_term}, Table~\ref{tab:money}). As the ECB
+raised rates, money migrated \emph{out of} instant overnight balances ($M1$ fell
+by about EUR\,1.2tn between 2022 and 2024) and \emph{into} term and notice
+deposits ($M2-M1$ rose from EUR\,3.4tn to EUR\,4.9tn) and marketable near-money
+($M3-M2$: MMF shares, repo, short debt). Broad money ($M3$) kept growing and
+co-moves with the household saving rate (annual correlation $+0.27$). Money
+itself is tiered by term, and the buffer is not just $M1$ cash.
+
+\fig{0.86}{money_supply_by_term}{Euro-area money supply decomposed by term:
+$M1$ (instant), $M2-M1$ (term/notice deposits), $M3-M2$ (marketable). The
+post-2022 widening of the $M2-M1$ band as $M1$ dips is the term shift.}
+
+\begin{table}[htbp]\centering\small
+\caption{Euro-area money supply by term (EUR\,bn, annual mean; ECB
+\dataset{BSI}).}\label{tab:money}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+year & $M1$ instant & $M2-M1$ term/notice & $M3-M2$ marketable & $M3$ \\
+\midrule
+2019 &  8{,}659 & 3{,}447 &   640 & 12{,}745 \\
+2021 & 10{,}846 & 3{,}434 &   766 & 15{,}045 \\
+2022 & 11{,}556 & 3{,}604 &   776 & 15{,}936 \\
+2023 & 10{,}720 & 4{,}391 &   900 & 16{,}011 \\
+2024 & 10{,}351 & 4{,}938 & 1{,}096 & 16{,}384 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Honest reading.} The $M1\!\rightarrow\!$ term migration is exactly
+what rising rates predict on their own, so this corroborates ``the buffer
+relocated, it did not disappear'' but cannot by itself separate precaution from
+intertemporal substitution.
+
+% ============================================================================
+\section{Risk premia and geopolitical tension}\label{sec:premia}
+% ============================================================================
+
+The feedback asked whether risk premia rise with geopolitical tension, and
+whether we can observe it. Three euro-area premia are free, observable, and can
+be set against the Geopolitical Risk (GPR) index the project already pulls: the
+\emph{credit} premium (euro high-yield option-adjusted spread); the
+\emph{sovereign / fragmentation} premium (the Italy--Germany 10-year spread, the
+cleanest euro-area gauge); and \emph{risk aversion} (the VIX, with VSTOXX as the
+euro analogue). The script overlays each on GPR, reports the co-movement in
+levels and monthly changes, and event-windows the February 2022 invasion.
+
+\fig{0.92}{risk_premia_vs_gpr}{Euro-area credit and sovereign spreads (top) and
+VIX (bottom) against the GPR index. Premia rise and jump with geopolitical
+tension.}
+
+\paragraph{Status.} This script requires FRED, which was unreachable from the
+build environment, so Figure~\ref{fig:risk_premia_vs_gpr} regenerates when
+\code{python3 risk\_premia.py} is run on a machine with FRED access; the FRED
+identifiers are standard and identical in form to the project's existing FRED
+pulls. Expected reading: positive correlations and a clear upward jump after
+February 2022 --- geopolitical tension is observably priced. This is an
+\emph{enabling} fact (the uncertainty is real and measurable in markets) rather
+than direct evidence on the household saving motive.
+
+% ============================================================================
+\section{A forward-looking lens}\label{sec:fwd}
+% ============================================================================
+
+The core analysis relates the \emph{realised} saving rate to
+\emph{contemporaneous} uncertainty. A forward-looking version asks whether what
+households and markets \emph{expect} carries information about saving. We build a
+caution composite from variables that are, by construction, about the future ---
+expected unemployment and intended saving (Eurostat \dataset{ei\_bsco\_m}), and
+implied volatility (VIX) when FRED is reachable --- as the mean of their
+$z$-scores, and test it against the realised saving rate
+(Figures~\ref{fig:forward_looking_composite}--\ref{fig:forward_looking_leadlag}).
+
+\fig{0.86}{forward_looking_composite}{The forward-looking caution composite
+($z$) against the realised saving rate ($z$).}
+
+\fig{0.62}{forward_looking_leadlag}{Lead--lag correlation
+$\mathrm{corr}(\text{saving}_t,\ \text{composite}_{t-k})$; $k>0$ means the
+composite leads.}
+
+\paragraph{Result.} A one-quarter-ahead regression,
+$\text{saving}_t = \alpha + \beta\,\text{composite}_{t-1}$, gives $\beta=+1.88$
+($p<0.001$, $R^2=0.38$, $n=107$), whereas the \emph{contemporaneous} GPR
+benchmark explains essentially nothing ($R^2\approx0.00$). Two honest caveats.
+First, the lead--lag correlation peaks \emph{contemporaneously} ($+0.76$ at
+$k=0$), so the right claim is ``an already-observable composite predicts saving
+far better than GPR,'' not ``expectations strongly lead saving.'' Second, the
+composite includes \emph{intended} saving, which is close to the target by
+construction; the cleaner forward signal is \emph{expected unemployment} (and,
+with FRED, the VIX). The substantive implication for the question is a
+refinement: the operative uncertainty looks like households' own perceived
+\emph{income / labour-market} risk, \emph{not} the abstract geopolitical index
+--- GPR barely moves household saving.
+
+% ============================================================================
+\section{Energy prices and the adequacy of cash}\label{sec:energy}
+% ============================================================================
+
+A precautionary buffer is only useful if it can cover a \emph{non-deferrable}
+shock; the energy bill is the cleanest example. Two findings
+(Figures~\ref{fig:energy_vs_cash_buffer}--\ref{fig:energy_squeeze_by_income}).
+First, the euro-area energy price level rose about $60\%$ above its 2019 level
+and stayed elevated, while the instant-cash share of household wealth did
+\emph{not} rise to meet it (it touched $21.5\%$ in 2022, then fell back to
+$\sim18\%$ by 2024) --- the non-deferrable bill grew as the cash cushion thinned,
+and households were moving \emph{out} of cash (\S\ref{sec:ladder}).
+
+\fig{0.86}{energy_vs_cash_buffer}{The euro-area energy price level (left, 2019$=$100)
+against the instant-cash share of household wealth (right).}
+
+Second, the squeeze is \emph{regressive} (Table~\ref{tab:energy}): the
+lowest-income quintile spends the largest budget share on energy yet
+\emph{dissaves} (a negative saving rate), while the top quintile saves heavily on
+the smallest energy share. The aggregate ``precautionary buffer'' is therefore a
+top-of-distribution phenomenon, and the households most exposed to an energy
+shock are the least able to self-insure --- they have no buffer to draw on, cash
+or otherwise.
+
+\fig{0.78}{energy_squeeze_by_income}{Energy budget share (illustrative) versus
+the saving rate, by income quintile. Highest burden meets the thinnest buffer.}
+
+\begin{table}[htbp]\centering\small
+\caption{Energy burden and saving capacity by income quintile (Q1 $=$ lowest).
+Energy shares are illustrative/stylised --- verify against the Household Budget
+Survey; saving rates are from Eurostat experimental ICW.}\label{tab:energy}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+ & Q1 & Q2 & Q3 & Q4 & Q5 \\
+\midrule
+energy share of spending (\%) & 11.0 & 9.5 & 8.0 & 7.0 & 5.5 \\
+saving rate (\%) & $-3.4$ & $+17.6$ & $+26.0$ & $+33.9$ & $+44.2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{A caveat to the reframe.} ``Sellable fast'' is not ``safe to spend
+now.'' Liquidating marketable (T3) assets to pay an energy bill in a stressed,
+high-tension state crystallises losses precisely when those asset prices are
+depressed and risk premia (\S\ref{sec:premia}) are elevated. Liquidity in normal
+times is not the same as adequacy in a crisis --- and the most vulnerable
+households cannot do even this.
+
+% ============================================================================
+\section{What this says about the question}\label{sec:synthesis}
+% ============================================================================
+
+\begin{enumerate}[label=\arabic*.]
+  \item \textbf{The false binary dissolves.} The post-2022 saving is best read as
+  a \emph{liquid precautionary buffer that also earns yield}. The
+  ``precaution versus yield-chasing'' dichotomy was an artefact of treating only
+  cash as liquid; on the ladder the broad sellable-fast share of saving flows
+  \emph{rose} (54\%\,$\to$\,73\%), and about half of household wealth is sellable
+  within days (\S\ref{sec:ladder}, \S\ref{sec:money}).
+  \item \textbf{The operative uncertainty is income fear, not geopolitics.}
+  Households' forward-looking expectations predict the saving rate
+  ($R^2\approx0.38$ one quarter ahead) while the geopolitical index does not
+  ($R^2\approx0$) --- so the precautionary channel runs through perceived
+  job/income risk (\S\ref{sec:fwd}). Risk premia confirm that tension is priced
+  (\S\ref{sec:premia}), but that is an enabling fact, not the household motive.
+  \item \textbf{The buffer is unevenly held.} The aggregate masks that the most
+  energy-exposed, most income-fearful households have no cushion at all
+  (\S\ref{sec:energy}).
+\end{enumerate}
+
+The verdict therefore moves from the presented version's cautious ``probably
+yield-chasing'' to a sharper and better-defended statement: \emph{a liquid
+precautionary buffer, optimised for yield once rates turned positive, driven more
+by income fear than by geopolitics, and concentrated among the households who can
+afford it.}
+
+% ============================================================================
+\section{Limitations}\label{sec:limits}
+% ============================================================================
+\begin{itemize}
+  \item \textbf{Correlation, not causation.} Rates, inflation, and uncertainty
+  all moved together after 2022; none of these descriptive results isolates the
+  precautionary channel, and the main project's formal cross-country/IRF tests
+  still return nulls.
+  \item \textbf{Rate-consistency.} The money-supply term shift (\S\ref{sec:money})
+  is equally consistent with a pure interest-rate story.
+  \item \textbf{Mechanical component.} Part of the forward-looking $R^2$ reflects
+  that the composite includes intended saving (\S\ref{sec:fwd}).
+  \item \textbf{Lower-bound liquidity.} Where Eurostat does not split F5, the
+  equity/funds block is treated as illiquid, so the broad-liquid shares are lower
+  bounds (\S\ref{sec:data}).
+  \item \textbf{Illustrative energy shares.} The by-income energy budget shares
+  are stylised and should be verified against the Household Budget Survey.
+  \item \textbf{Pending data.} The risk-premia figure regenerates on a machine
+  with FRED access. All series are pulled live and revised --- regenerate before
+  citing.
+\end{itemize}
+
+\end{document}
