@@ -13,24 +13,26 @@ saving rate). The story to test: US households hold far less in cash/deposits an
 far more in marketable equities & funds than euro-area households, so their
 "buffer" is even more sellable-fast (but more exposed to market price risk).
 
-Data: FRED (Z.1 HNO levels, $bn; US personal saving rate PSAVERT). This is
-FRED-sourced, so run it where FRED is reachable. **US Z.1 series ids are
-best-effort**: each component lists candidate ids and the script uses the first
-that resolves, printing a resolved/unresolved table — replace any unresolved id
-from fred.stlouisfed.org (search "Households; <concept>; Asset, Level"). Shares
-are computed against TOTAL financial assets, so a component that fails to resolve
-shows up as an unclassified residual rather than inflating the liquid share.
+Data (no FRED needed for the ladder): the US household balance sheet comes from
+the **OECD** financial accounts (sector S1M households, SDMX, the same ESA F-codes
+as the euro area), so the ladder renders anywhere OECD is reachable and reuses the
+same `build_tiers()`. The US personal saving rate uses FRED (PSAVERT) when
+reachable; the saving figure ALWAYS renders (euro area always shown, US line added
+when FRED is available). A FRED Z.1 component path is kept as a ladder fallback.
+Shares are taken against TOTAL financial assets.
 
-    python us_comparison.py        # needs FRED
+    python us_comparison.py
 """
 
 import os
+from io import StringIO
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 import _common as C
+from liquidity_ladder import build_tiers
 
 REPORT = []
 
@@ -58,6 +60,34 @@ TIER_COLORS = {"T1": C.C_COOL, "T2": C.C_GREEN, "T3": C.C_ORANGE, "T4": C.C_HOT}
 def say(line=""):
     print(line)
     REPORT.append(str(line))
+
+
+OECD_BS_FLOW = "DSD_NASEC20@DF_T720R_A"   # OECD financial balance sheets (stocks)
+
+
+def oecd_us_household_stocks(start=2005):
+    """US household (S1M) financial assets by instrument from the OECD financial
+    accounts -> tidy [year, na_item(F-code), value]. No FRED needed; the same ESA
+    instrument codes as the euro-area ladder, so build_tiers() applies directly."""
+    key = ".".join(["A", "", "USA"] + [""] * 15)   # 18-dim key: FREQ=A, REF_AREA=USA
+    url = (f"https://sdmx.oecd.org/public/rest/data/OECD.SDD.NAD,{OECD_BS_FLOW},/{key}"
+           f"?startPeriod={start}&dimensionAtObservation=AllDimensions&format=csvfilewithlabels")
+    df = pd.read_csv(StringIO(C.http_get(url, timeout=120).text))
+    df = df[(df["SECTOR"] == "S1M") & (df["ACCOUNTING_ENTRY"] == "A")
+            & (df["TRANSACTION"] == "LE")]
+    if "UNIT_MEASURE" in df.columns and "USD" in set(df["UNIT_MEASURE"]):
+        df = df[df["UNIT_MEASURE"] == "USD"]
+    if "MATURITY" in df.columns:        # one row per instrument (total / not-applicable)
+        df = df[df["MATURITY"].isin(["T", "_Z"])]
+    df["value"] = pd.to_numeric(df["OBS_VALUE"], errors="coerce")
+    df["year"] = df["TIME_PERIOD"].astype(str).str.extract(r"(\d{4})").astype(float)
+    df = df.dropna(subset=["value", "year"])
+    df["year"] = df["year"].astype(int)
+    long = (df.rename(columns={"INSTR_ASSET": "na_item"})
+              .groupby(["year", "na_item"])["value"].sum().reset_index())
+    if long.empty or "F" not in set(long["na_item"]):
+        raise RuntimeError("OECD US balance sheet: no usable rows after filtering")
+    return long[["year", "na_item", "value"]], f"OECD {OECD_BS_FLOW} (USA, S1M)"
 
 
 def _first_resolving(ids, name):
@@ -115,7 +145,7 @@ def ea_latest_shares():
     if not os.path.exists(p):
         return None
     ea = pd.read_csv(p).sort_values("year").iloc[-1]
-    return {t: float(ea[f"{t}_share"]) for t in TIERS} | \
+    return {f"{t}_share": float(ea[f"{t}_share"]) for t in TIERS} | \
            {"broad_liquid_share": float(ea["broad_liquid_share"]), "year": int(ea["year"])}
 
 
@@ -139,32 +169,42 @@ def plot_ladder_compare(us_latest, ea):
                  "financial wealth by liquidity tier (stocks, latest)",
                  fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
-    C.caveat(fig, "US: Fed Z.1 (HNO), shares of total financial assets. EA: Eurostat "
-                  "nasa_10_f_bs. US tilts to T3 (equities/funds); EA holds more in deposits.")
+    C.caveat(fig, "US: OECD financial accounts (S1M households, Fed Z.1 basis), shares of total "
+                  "financial assets. EA: Eurostat nasa_10_f_bs. US tilts to T3 (equities/funds); "
+                  "EA holds more in deposits.")
     C.savefig(fig, "us_vs_ea_ladder.png")
 
 
 def plot_saving_compare():
     """US personal saving rate (PSAVERT) vs EA household saving rate over time."""
+    ea = C.load_quarterly("ea_saving_rate_quarterly.csv", "saving")
+    us = None
     try:
         us = C.get_fred_series("PSAVERT", "psr").set_index("date")["psr"].resample("QS").mean()
     except Exception as e:
-        say(f"  US saving rate (PSAVERT) failed: {e}")
-        return
-    ea = C.load_quarterly("ea_saving_rate_quarterly.csv", "saving")
+        say(f"  US saving rate (PSAVERT, FRED) unavailable: {e}; EA shown alone "
+            f"(run where FRED is reachable for the US line)")
     fig, ax = plt.subplots(figsize=(10, 5.2))
-    ax.plot(us.index, us.values, color=C.C_MAIN, lw=2.0, label="US personal saving rate")
-    ax.plot(ea.index, ea.values, color=C.C_ORANGE, lw=2.4, label="Euro-area household saving rate")
+    ax.plot(ea.index, ea.values, color=C.C_ORANGE, lw=2.4,
+            label="Euro-area household saving rate (gross)")
+    if us is not None:
+        ax.plot(us.index, us.values, color=C.C_MAIN, lw=2.0,
+                label="US personal saving rate (net)")
+    else:
+        ax.text(0.5, 0.5, "US line pending FRED\n(run us_comparison.py where FRED is reachable)",
+                transform=ax.transAxes, ha="center", va="center", fontsize=9,
+                color=C.C_GREY, style="italic")
     C.mark_periods(ax, shade=True)
     ax.set_ylabel("saving rate (% of disposable income)")
     ax.set_xlabel("date")
     ax.set_title("Saving rates: US vs euro area", fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
-    C.caveat(fig, "Note: US PSAVERT is a NET personal saving rate, the EA figure is GROSS — "
-                  "compare the dynamics (both rose post-2022), not the levels.")
+    C.caveat(fig, "US PSAVERT is a NET personal saving rate; the EA figure is GROSS — "
+                  "compare the dynamics, not the levels.")
     C.savefig(fig, "us_vs_ea_saving.png")
-    pd.concat([us.rename("us"), ea.rename("ea")], axis=1).to_csv(
-        os.path.join(C.DATA, "us_vs_ea_saving.csv"))
+    if us is not None:
+        pd.concat([us.rename("us"), ea.rename("ea")], axis=1).to_csv(
+            os.path.join(C.DATA, "us_vs_ea_saving.csv"))
 
 
 def main():
@@ -172,17 +212,28 @@ def main():
     say("# US vs euro area — the same liquidity ladder")
     say("#" * 72)
 
+    us = None
     try:
-        us = us_tier_shares()
+        long_us, src = oecd_us_household_stocks()
+        us, notes = build_tiers(long_us)
+        say(f"\nUS ladder from {src}")
+        for n in notes:
+            say(f"  note: {n}")
+    except Exception as e:
+        say(f"  US via OECD failed ({e}); trying FRED Z.1 fallback")
+        try:
+            us = us_tier_shares()
+        except Exception as e2:
+            say(f"  US via FRED also failed: {e2}")
+
+    latest = None
+    if us is not None and len(us):
         latest = us.iloc[-1]
         say(f"\nUS household tier shares of financial assets ({int(latest['year'])}):")
         for t in TIERS:
             say(f"  {TIER_LABELS[t]:<16}: {latest[f'{t}_share']:5.1f}%")
         say(f"  broad sellable-fast (T1+T2+T3): {latest['broad_liquid_share']:.1f}%")
         us.to_csv(os.path.join(C.DATA, "us_ladder_stocks.csv"))
-    except Exception as e:
-        say(f"  US ladder failed: {e}")
-        latest = None
 
     ea = ea_latest_shares()
     if ea is None:

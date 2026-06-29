@@ -446,11 +446,16 @@ euro area (stocks, latest). US: Fed Z.1 (households \& nonprofits); EA: Eurostat
 \fig{0.84}{us_vs_ea_saving}{Saving rates: US (personal, \emph{net}) vs euro area
 (household, \emph{gross}) --- compare the dynamics, not the levels.}
 
-\paragraph{Status.} \code{us\_comparison.py} is FRED-sourced (Z.1 + the US saving
-rate), so the two figures regenerate when it is run where FRED is reachable. The
-US Z.1 series ids are best-effort and the script prints which resolved; shares are
-taken against \emph{total} financial assets, so an unresolved component shows as a
-residual rather than inflating the liquid share.
+\paragraph{Status.} The US household ladder (Figure~\ref{fig:us_vs_ea_ladder}) is
+built from the \textbf{OECD} financial accounts (sector S1M households, the same
+ESA instrument codes as the euro area, Fed Z.1 basis), so it renders \emph{without}
+FRED. The saving figure (Figure~\ref{fig:us_vs_ea_saving}) always shows the
+euro-area line and adds the US personal saving rate (FRED \code{PSAVERT}) where
+reachable. Shares are taken against \emph{total} financial assets. Live US result:
+only ${\sim}4\%$ of US household wealth is instant cash vs ${\sim}18\%$ in the euro
+area, while the marketable tier (T3, equities \& funds) is ${\sim}46\%$ vs
+${\sim}19\%$ --- the US buffer is more sellable-fast but far more exposed to market
+price risk.
 
 % ============================================================================
 \section{What this says about the question}\label{sec:synthesis}
@@ -497,10 +502,11 @@ afford it.}
   bounds (\S\ref{sec:data}).
   \item \textbf{Illustrative energy shares.} The by-income energy budget shares
   are stylised and should be verified against the Household Budget Survey.
-  \item \textbf{Pending data.} The two US-comparison figures (and the credit /
-  VIX series within the risk-premia figure) regenerate on a machine with FRED
-  access; the risk-premia sovereign spread already renders via the ECB fallback.
-  All series are pulled live and revised --- regenerate before citing.
+  \item \textbf{Pending data.} Everything renders from free, non-FRED sources
+  except two lines: the US \emph{saving-rate} line and the credit/VIX series in the
+  risk-premia figure, which fill in with FRED (the US ladder uses OECD; the
+  sovereign spread uses the ECB fallback). All series are pulled live and revised
+  --- regenerate before citing.
 \end{itemize}
 
 \end{document}
