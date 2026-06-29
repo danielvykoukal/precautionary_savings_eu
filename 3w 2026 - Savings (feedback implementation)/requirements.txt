@@ -8,3 +8,4 @@ requests==2.32.5
 eurostat==1.1.1
 openpyxl==3.1.5
 xlrd==2.0.1          # reads the Caldara-Iacoviello GPR .xls (old Excel format)
+geopandas>=0.14      # Europe choropleth map (extension_descriptive/europe_map.py only)

@@ -1,0 +1,172 @@
+% ============================================================================
+%  Precautionary Saving in Europe --- A Descriptive Overview
+%  Wave 1 of the descriptive scene-setter (ideas 1, 4, 5, 6).
+%  Compile with:  pdflatex documentation.tex   (run twice for references)
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathpazo}
+\linespread{1.05}
+\usepackage{microtype}
+
+\usepackage[a4paper,margin=2.6cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\graphicspath{{figures/}{./}}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=3pt}
+\usepackage[section]{placeins}
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+\usepackage{xcolor}
+\usepackage[hidelinks,colorlinks=true,linkcolor=black!70!blue,
+            urlcolor=black!60!blue,citecolor=black]{hyperref}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\dataset}[1]{\textsc{#1}}
+\newcommand{\fig}[3]{%
+  \begin{figure}[htbp]\centering
+    \IfFileExists{figures/#2.png}
+      {\includegraphics[width=#1\linewidth]{#2}}
+      {\fbox{\parbox{0.80\linewidth}{\centering\itshape figure not found ---
+        run \code{bash run.sh} to generate it.}}}
+    \caption{#3}\label{fig:#2}
+  \end{figure}}
+
+\title{\textbf{Precautionary Saving in Europe: A Descriptive Overview}\\[3pt]
+       \large Structural vs Cyclical, the Map, Spending, and What Households Hold}
+\author{Project documentation --- descriptive extension (Wave 1)}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+Before testing \emph{why} the euro-area household saving rate is high, this note
+sets the scene \emph{descriptively}, as the supervisors asked. Four pictures: (1)
+is the elevated rate a new \emph{structural} norm or a \emph{cyclical} bump? (4) a
+map of how saving rates vary across Europe; (5) how spending rotated from goods to
+services; and (6) what households actually hold, and how the risk mix has evolved.
+Headlines: the saving-rate \emph{trend} has stepped up about $1.7$ pp
+($12.9\%\!\to\!14.6\%$) with the cycle now near zero, so the persistence is mostly
+structural; the North--South map (Germany ${\sim}20\%$ vs the South ${\sim}11$--$13\%$,
+Greece dissaving) is long-standing, not new; real services consumption rebounded
+above its 2019 level while goods flattened, reconciling high saving with strong
+services; and the risky (equity \& funds) share of household wealth rose about
+$+8$ pp over the decade ($29\%\!\to\!37\%$) even as deposits held near $31\%$. All
+figures use free data (Eurostat + GISCO; no FRED) from a live run on \today\ and
+should be regenerated before citation. This is Wave 1 (ideas 1, 4, 5, 6); the
+demographics/pension and US-history pieces follow in Wave 2.
+\end{abstract}
+
+\tableofcontents
+\bigskip\hrule\bigskip
+
+% ============================================================================
+\section{Why descriptive, and what these four pictures show}\label{sec:intro}
+% ============================================================================
+The companion \code{../extension\_feedback/} folder asks \emph{why} the saving
+rate is high (a precautionary, liquidity-tiered reading). The supervisors asked
+to step back first and describe the phenomenon. This note does that with four
+self-contained charts, each a standalone script reusing the project helpers and
+the house style (shaded COVID / energy-hiking bands, a dashed Feb-2022 line,
+direct annotations, an italic footnote). It motivates, rather than tests, the
+hypothesis work.
+
+% ============================================================================
+\section{Structural or cyclical?}\label{sec:struct}
+% ============================================================================
+Is the elevated rate a new \emph{norm} or a \emph{cycle} that should revert? A
+Hodrick--Prescott filter ($\lambda=1600$) splits the saving rate into a slow trend
+(structural) and a cycle (Figure~\ref{fig:structural_vs_cyclical}). The structural
+trend has \textbf{stepped up about $1.7$ pp}, from $12.9\%$ (2012--19) to $14.6\%$
+today, while the latest cycle is essentially \emph{zero} --- the rate sits at its
+trend. The 2020 lockdown spike was almost entirely cyclical and has unwound. So
+the persistence is now \textbf{mostly structural}: a higher norm, consistent with
+saving more for old age as pension promises weaken, rather than a transient bump.
+(The 2020 spike distorts the HP trend around 2020; read the pre-2020 vs latest
+step, not the 2020 bend.)
+
+\fig{0.92}{structural_vs_cyclical}{The euro-area saving rate split into a
+structural trend and a cyclical component (HP, $\lambda=1600$); the lower panel
+shows the cycle against cyclical drivers (ECB rate, inflation, GPR), $z$-scored.}
+
+% ============================================================================
+\section{The European map}\label{sec:map}
+% ============================================================================
+Where is saving high? A choropleth of the gross household saving rate by country
+(Figure~\ref{fig:europe_saving_map}): \textbf{Germany ${\sim}20\%$ and France
+${\sim}18\%$}, the Nordics high; \textbf{Italy ${\sim}11\%$, Spain ${\sim}13\%$},
+and \textbf{Greece dissaving}. The North--South gap is \emph{structural and
+long-standing} --- it predates the energy shock --- so a raw "who saves most" map
+mostly reflects habits, not the recent crisis.
+
+\fig{0.78}{europe_saving_map}{Gross household saving rate by country (latest year);
+Eurostat \dataset{tec00131} with GISCO boundaries. North dark, South light.}
+
+% ============================================================================
+\section{Spending: goods vs services}\label{sec:goods}
+% ============================================================================
+If saving is so high, how has services spending stayed so strong? Real consumption
+volumes (2019$=$100, Figure~\ref{fig:goods_vs_services}) resolve the puzzle:
+\textbf{services collapsed in 2020 then rebounded to ${\sim}107$}, while goods
+boomed in lockdown and then flattened (${\sim}103$). Households kept consuming
+services (reopening, and services inflation lifts the \emph{nominal} figure
+further) and saved by \textbf{pulling back on goods}. High saving and strong
+services are two sides of a \textbf{goods$\rightarrow$services rotation}, not a
+contradiction.
+
+\fig{0.86}{goods_vs_services}{Real household consumption of goods vs services
+(2019$=$100) against the saving rate; Eurostat \dataset{nama\_10\_fcs}.}
+
+% ============================================================================
+\section{What households save in, and how it evolved}\label{sec:compose}
+% ============================================================================
+Disaggregating the household balance sheet by \emph{risk}
+(Figure~\ref{fig:saving_composition_evolution}): the \textbf{risky share (equity \&
+investment-fund shares, F5) rose about $+8$ pp over the decade, $29\%\to37\%$},
+while \textbf{non-risky deposits (F2) held near $31\%$} and insurance/pensions also
+rose. Equity is now the \emph{largest single instrument}, though deposits and
+pensions (non-risky) still dominate combined. So the non-risky base is still large,
+but \textbf{equity involvement has clearly grown} --- more euro-area households now
+carry market exposure. The cross-country snapshot
+(Figure~\ref{fig:risky_share_by_country}) shows that risky share is higher in the
+core/North and lower in the South.
+
+\fig{0.86}{saving_composition_evolution}{Non-risky (deposits, F2) vs risky (equity
+\& funds, F5) share of euro-area household financial assets over time; Eurostat
+\dataset{nasa\_10\_f\_bs}.}
+
+\fig{0.74}{risky_share_by_country}{Risky (equity \& investment-fund) share of
+household financial assets, by country (latest).}
+
+% ============================================================================
+\section{Synthesis}\label{sec:synth}
+% ============================================================================
+\begin{enumerate}[label=\arabic*.]
+  \item The elevated saving rate is now a \textbf{higher structural norm}, not a
+  passing cycle (\S\ref{sec:struct}).
+  \item It sits on a \textbf{structural North--South map} that long predates the
+  shock (\S\ref{sec:map}).
+  \item High saving coexists with \textbf{strong services} via a
+  goods$\rightarrow$services rotation (\S\ref{sec:goods}).
+  \item Households still hold a large \textbf{non-risky} base, but \textbf{equity
+  involvement has grown} markedly over the decade (\S\ref{sec:compose}).
+\end{enumerate}
+These descriptive facts motivate the hypothesis work in
+\code{../extension\_feedback/}: a precautionary, liquidity-tiered reading of why
+the rate is high and where the money sits. Wave 2 will add demographics \& pension
+systems and the US discrepancy / pension history. All series are pulled live and
+revised --- regenerate before citing.
+
+\end{document}
