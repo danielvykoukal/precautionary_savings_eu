@@ -129,12 +129,14 @@ def main():
                      label="instant-cash share of household wealth (right)")
             ax2.set_ylabel("instant-cash share of wealth (%)", color=C.C_COOL)
             ax2.tick_params(axis="y", colors=C.C_COOL)
-        ax1.axvline(pd.Timestamp("2022-02-24"), color="grey", ls="--", lw=1)
+        C.mark_periods(ax1, shade=True)
         ax1.set_title("Energy bills surged; the instant-cash cushion did not\n"
                       "euro-area households", fontweight="bold")
         h1, l1 = ax1.get_legend_handles_labels()
         h2, l2 = ax2.get_legend_handles_labels()
         ax1.legend(h1 + h2, l1 + l2, frameon=False, fontsize=8, loc="upper left")
+        C.caveat(fig, "Energy HICP (2019=100) vs the T1 instant-cash share of wealth. The "
+                      "non-deferrable bill rose ~60% while the cash cushion did not keep pace.")
         C.savefig(fig, "energy_vs_cash_buffer.png")
 
     # ---- (2) distribution: energy budget share vs saving capacity by quintile ----
@@ -174,6 +176,8 @@ def main():
         h1, l1 = ax1.get_legend_handles_labels()
         h2, l2 = ax2.get_legend_handles_labels()
         ax1.legend(h1 + h2, l1 + l2, frameon=False, fontsize=8.5, loc="upper center")
+        C.caveat(fig, "Energy budget shares illustrative (HBS/ECB); saving rates from Eurostat "
+                      "experimental ICW. The poorest dissave while carrying the largest energy burden.")
         C.savefig(fig, "energy_squeeze_by_income.png")
         q.to_csv(os.path.join(C.DATA, "energy_squeeze_by_income.csv"), index=False)
     except Exception as e:

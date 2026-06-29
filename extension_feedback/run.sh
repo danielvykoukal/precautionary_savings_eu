@@ -9,7 +9,7 @@
 #     bash run.sh
 cd "$(dirname "$0")" || exit 1
 
-for s in liquidity_ladder.py money_supply.py risk_premia.py forward_looking.py energy_liquidity.py; do
+for s in liquidity_ladder.py money_supply.py risk_premia.py forward_looking.py energy_liquidity.py us_comparison.py; do
   echo ""
   echo "============================================================"
   echo "  $s"

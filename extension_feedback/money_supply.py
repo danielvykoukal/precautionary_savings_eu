@@ -111,11 +111,13 @@ def main():
         if lab in series:
             g = yoy(series[lab]).dropna()
             ax.plot(g.index, g.values, color=color, lw=2.0, label=f"{lab} YoY %")
-    ax.axvline(pd.Timestamp("2022-02-24"), color="grey", ls="--", lw=1)
+    C.mark_periods(ax, shade=True)
     ax.set_ylabel("year-on-year growth (%)")
     ax.set_title("Euro-area money supply growth by aggregate\n"
                  "M1 (instant) reacts most to the rate cycle", fontweight="bold")
-    ax.legend(frameon=False, fontsize=9, loc="upper right")
+    ax.legend(frameon=False, fontsize=9, loc="upper left")
+    C.caveat(fig, "Euro-area M1/M2/M3 YoY growth (ECB BSI / FRED). M1 surged at the "
+                  "ZLB/COVID and fell as rates rose — instant money is the most rate-sensitive.")
     C.savefig(fig, "money_supply_growth.png")
 
     out = pd.DataFrame(series)
@@ -140,12 +142,14 @@ def main():
                              "M2-M1 term/notice deposits",
                              "M3-M2 marketable (MMF, repo, short debt)"],
                      colors=[C.C_COOL, C.C_GREEN, C.C_ORANGE], alpha=0.9)
-        ax.axvline(2021.5, color="grey", ls=":", lw=1)
+        C.mark_periods(ax, year_axis=True, shade=False, labels=False)  # full-height stack
         ax.set_ylabel("outstanding amount (EUR bn)")
         ax.set_xlabel("year")
         ax.set_title("Euro-area money supply, divided by term\n"
                      "M1 / (M2-M1) / (M3-M2)", fontweight="bold")
         ax.legend(frameon=False, fontsize=8.5, loc="upper left")
+        C.caveat(fig, "ECB BSI outstanding amounts. As rates rose post-2022 (dashed line), "
+                      "M1 dipped while term/notice (M2-M1) widened — money moved up the term ladder.")
         C.savefig(fig, "money_supply_by_term.png")
         ann.to_csv(os.path.join(C.DATA, "money_supply_by_term.csv"))
 

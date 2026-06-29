@@ -182,11 +182,13 @@ def main():
             label="forward-looking caution composite (z)")
     ax.plot(C.zscore(saving).index, C.zscore(saving).values, color=C.C_MAIN, lw=2.4,
             label="realised saving rate (z)")
-    ax.axvline(pd.Timestamp("2022-02-24"), color="grey", ls="--", lw=1)
+    C.mark_periods(ax, shade=True)
     ax.set_ylabel("standardised (z)")
     ax.set_title("Expectations vs the realised saving rate\n"
                  "a forward-looking caution composite", fontweight="bold")
     ax.legend(frameon=False, fontsize=8.5, loc="upper left")
+    C.caveat(fig, "Composite = mean z of expected unemployment + intended saving (+ VIX when "
+                  "FRED is reachable). It co-moves with, and helps predict, the realised saving rate.")
     C.savefig(fig, "forward_looking_composite.png")
 
     fig, ax = plt.subplots(figsize=(7.5, 4.6))

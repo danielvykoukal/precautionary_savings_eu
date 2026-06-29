@@ -94,6 +94,48 @@ TIER_COLORS = {
 
 
 # ----------------------------------------------------------------------------
+# Regime shading / annotation — mimics the 2w report "house style"
+# (shaded COVID + energy/hiking bands, dashed invasion line, labels, footnote)
+# ----------------------------------------------------------------------------
+COVID_SPAN = ("2020-01-01", "2020-12-31")
+ENERGY_SPAN = ("2021-09-01", "2023-12-31")
+INVASION = "2022-02-24"
+
+
+def _xpos(ts, year_axis):
+    """Map a date to the x-axis: a Timestamp, or a fractional year if year_axis."""
+    t = pd.Timestamp(ts)
+    return (t.year + (t.dayofyear - 1) / 365.25) if year_axis else t
+
+
+def mark_periods(ax, year_axis=False, shade=True, invasion=True, labels=True):
+    """Shade COVID (forced saving) and the 2021-23 energy-shock / ECB-hiking
+    window, mark the Feb-2022 invasion, and label them -- the 2w report style.
+    Works on a datetime x-axis or an integer-year axis (year_axis=True). Call
+    AFTER plotting (it reads the current y-limits to place the labels). For
+    stacked-area charts pass shade=False (the stack hides the bands)."""
+    if shade:
+        ax.axvspan(_xpos(COVID_SPAN[0], year_axis), _xpos(COVID_SPAN[1], year_axis),
+                   color="#5d6d7e", alpha=0.10, zorder=0)
+        ax.axvspan(_xpos(ENERGY_SPAN[0], year_axis), _xpos(ENERGY_SPAN[1], year_axis),
+                   color=C_ORANGE, alpha=0.08, zorder=0)
+    if invasion:
+        ax.axvline(_xpos(INVASION, year_axis), color="grey", ls="--", lw=1, zorder=3)
+    if labels:
+        top = ax.get_ylim()[1]
+        ax.text(_xpos("2020-07-01", year_axis), top, "COVID\n(forced saving)",
+                ha="center", va="top", fontsize=7.5, color="#5d6d7e")
+        ax.text(_xpos("2022-11-01", year_axis), top, "war + energy\n+ ECB hikes",
+                ha="center", va="top", fontsize=7.5, color="#a04000")
+    return ax
+
+
+def caveat(fig, text):
+    """Small italic footnote, bottom-left (2w report style)."""
+    fig.text(0.01, 0.005, text, fontsize=7.5, style="italic", color="#555")
+
+
+# ----------------------------------------------------------------------------
 # Network + Eurostat helpers
 # ----------------------------------------------------------------------------
 def http_get(url, timeout=60):

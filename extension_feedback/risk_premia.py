@@ -81,15 +81,26 @@ def main():
     except Exception as e:
         say(f"  credit spread failed: {e}")
 
-    # sovereign / fragmentation premium: IT 10y - DE 10y
+    # sovereign / fragmentation premium: IT 10y - DE 10y. FRED first; if FRED is
+    # unreachable, fall back to the ECB Data Portal (Maastricht 10y gov-bond yields)
+    # so this spread (the cleanest euro-area gauge) still renders.
+    btp = None
     try:
         it = C.get_fred_series("IRLTLT01ITM156N", "it").set_index("date")["it"]
         de = C.get_fred_series("IRLTLT01DEM156N", "de").set_index("date")["de"]
         btp = (monthly(it) - monthly(de)).dropna().rename("btp_bund")
-        prem["Italy-Germany 10y spread (pp)"] = btp
         sources["sovereign"] = "FRED IRLTLT01ITM156N - IRLTLT01DEM156N"
     except Exception as e:
-        say(f"  sovereign spread failed: {e}")
+        say(f"  sovereign spread via FRED failed ({e}); trying ECB")
+        try:
+            it = C.ecb_sdmx("IRS", "M.IT.L.L40.CI.0000.EUR.N.Z").set_index("date")["value"]
+            de = C.ecb_sdmx("IRS", "M.DE.L.L40.CI.0000.EUR.N.Z").set_index("date")["value"]
+            btp = (it.resample("MS").mean() - de.resample("MS").mean()).dropna().rename("btp_bund")
+            sources["sovereign"] = "ECB IRS Maastricht 10y (IT - DE)"
+        except Exception as e2:
+            say(f"  sovereign spread via ECB failed: {e2}")
+    if btp is not None:
+        prem["Italy-Germany 10y spread (pp)"] = btp
 
     # implied volatility / risk aversion
     try:
@@ -146,7 +157,7 @@ def main():
         axTg.fill_between(gpr.index, gpr.values, color=C.C_GREY, alpha=0.18)
         axTg.plot(gpr.index, gpr.values, color=C.C_GREY, lw=1.0, label="GPR (right)")
         axTg.set_ylabel("GPR index", color=C.C_GREY)
-    axT.axvline(INVASION, color="grey", ls="--", lw=1)
+    C.mark_periods(axT, shade=True)
     axT.set_ylabel("spread (% / pp)")
     axT.set_title("Risk premia rise with geopolitical tension\n"
                   "euro-area credit & sovereign spreads vs the GPR index",
@@ -163,11 +174,13 @@ def main():
                  color=C.C_COOL, lw=1.6, label="VIX (z)")
     if gpr is not None:
         axB.plot(gpr.index, C.zscore(gpr), color=C.C_GREY, lw=1.6, label="GPR (z)")
-    axB.axvline(INVASION, color="grey", ls="--", lw=1)
+    C.mark_periods(axB, shade=True, labels=False)
     axB.axhline(0, color="black", lw=0.6, alpha=0.5)
     axB.set_ylabel("standardised (z)")
     axB.set_xlabel("date")
     axB.legend(frameon=False, fontsize=8, loc="upper left")
+    C.caveat(fig, "Euro-area risk premia vs the GPR index. Spreads/implied vol jump with "
+                  "geopolitical tension (Feb-2022 line); shaded = COVID and the energy/hiking window.")
     C.savefig(fig, "risk_premia_vs_gpr.png")
 
     pd.DataFrame(rows).to_csv(os.path.join(C.DATA, "risk_premia_summary.csv"), index=False)

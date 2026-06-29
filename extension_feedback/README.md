@@ -31,11 +31,12 @@ bash run.sh                          # or run any script on its own
 
 | Feedback point | Script | What it does | Extra data |
 |---|---|---|---|
-| each asset type; **divide by term**; "sold fast"; where/liquidity | `liquidity_ladder.py` | Reclassifies household assets into 4 liquidity/maturity tiers (T1 instant → T4 illiquid), on **stocks** (`nasa_10_f_bs`) and **flows** (`nasa_10_f_tr`). Headline: narrow **cash** share vs broad **sellable-fast** share. | Eurostat `nasa_10_f_bs` |
+| each asset type; **divide by term**; "sold fast"; where/liquidity | `liquidity_ladder.py` | Reclassifies household assets into 4 liquidity/maturity tiers (T1 instant → T4 illiquid), **splitting debt securities by term (F31 short → T2, F32 long → T3)**, on **stocks** (`nasa_10_f_bs`) and **flows** (`nasa_10_f_tr`). Headline: narrow **cash** share vs broad **sellable-fast** share. | Eurostat `nasa_10_f_bs` |
 | **money supply**; divide by term | `money_supply.py` | Euro-area **M1 / M2−M1 / M3−M2** decomposed by term; growth vs the saving rate. The central-bank counterpart to the household ladder. | ECB Data Portal (BSI); FRED fallback |
-| **risk premia** rise with geopolitical tension — *observable?* | `risk_premia.py` | Euro **HY credit spread**, **Italy–Germany (BTP–Bund)** sovereign spread, **VIX**, overlaid on the **GPR** index; co-movement + Feb-2022 event window. | FRED `BAMLHE00EHYIOAS`, `IRLTLT01ITM156N`, `IRLTLT01DEM156N`, `VIXCLS` |
+| **risk premia** rise with geopolitical tension — *observable?* | `risk_premia.py` | Euro **HY credit spread**, **Italy–Germany (BTP–Bund)** sovereign spread, **VIX**, overlaid on the **GPR** index; co-movement + Feb-2022 event window. The sovereign spread **falls back to the ECB** when FRED is unreachable. | FRED `BAMLHE00EHYIOAS`, `IRLTLT01ITM156N`, `IRLTLT01DEM156N`, `VIXCLS`; ECB IRS fallback |
 | more **forward-looking** approach | `forward_looking.py` | A forward-looking caution composite (expected unemployment + saving intentions + VIX) tested for whether it **leads** the saving rate (lead-lag + 1-quarter-ahead regression vs a contemporaneous-GPR benchmark). | Eurostat `ei_bsco_m`, FRED `VIXCLS` |
 | risk of **too little cash** vs rising **energy** prices | `energy_liquidity.py` | Instant-cash share of wealth vs the energy-price level; the regressive squeeze by income quintile (energy budget share vs saving capacity). | Eurostat energy HICP; reuses `build_tiers` |
+| **US comparison** (same thing in the US) | `us_comparison.py` | US household assets on the **same liquidity ladder** + the US personal saving rate, side-by-side with the euro area. US tilts to marketable equities/funds (more sellable-fast, more price-risk). | Fed Z.1 / FRED — run where FRED is reachable |
 
 ## The argument in one paragraph
 

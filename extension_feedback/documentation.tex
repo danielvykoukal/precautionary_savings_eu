@@ -24,6 +24,12 @@
 \captionsetup{font=small,labelfont=bf}
 \usepackage{enumitem}
 \setlist{itemsep=2pt,topsep=3pt}
+\usepackage[section]{placeins}   % keep each section's floats within it (no drift)
+% pack pages tighter (fewer float-only pages / less trailing whitespace)
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
 \usepackage{xcolor}
 \definecolor{codebg}{gray}{0.96}
 \definecolor{rule}{gray}{0.5}
@@ -66,9 +72,11 @@ liquid buffer, it moved up the risk/return scale while staying sellable within
 days. We then add the four further pieces the feedback asked for: the money
 supply divided by term ($M1$/$M2$/$M3$); observable risk premia set against
 geopolitical tension; a forward-looking expectations composite; and an
-energy-price liquidity-adequacy analysis. All series are euro-area and free
-(Eurostat, the ECB Data Portal, FRED, and the Caldara--Iacoviello GPR index);
-the scripts reuse the main project's helpers. Headline result: the broad
+energy-price liquidity-adequacy analysis; debt securities are split by term for a
+finer ladder, and a United States comparison (Fed Z.1) sets the euro-area picture
+in relief. All series are free (Eurostat, the ECB Data Portal, FRED, the
+Caldara--Iacoviello GPR index, and the US Financial Accounts); the scripts reuse
+the main project's helpers. Headline result: the broad
 sellable-fast share of household saving flows \emph{rose} from $54\%$ to $73\%$
 after 2022, and about half of household financial wealth is sellable within
 days --- so the precaution-versus-yield dichotomy is false. Households'
@@ -111,7 +119,9 @@ holdings are.
 \paragraph{The organising reframe.} A bond, a listed share, or a money-market
 fund unit is sellable in days. Treating it as ``locked'' understates the
 precautionary buffer. We therefore replace the binary with a four-rung
-liquidity / maturity ladder (Table~\ref{tab:ladder}) and recompute the
+liquidity / maturity ladder (Table~\ref{tab:ladder}); we divide finer where the
+data allow --- debt securities are split \emph{by term}, short-term (F31) into
+near-money and long-term (F32) into the marketable tier --- and recompute the
 composition of saving on it. The monetary aggregates are the central bank's own
 liquidity-by-term tiering of the money-holding sector's claims, so they are the
 natural macro counterpart. The remaining sections add the risk-premium,
@@ -141,11 +151,11 @@ Data Portal for the monetary aggregates.
 T1 --- instant ($\approx M1$) & F21 currency, F22 overnight deposits &
   settle immediately, no price risk \\
 T2 --- near-money ($\approx M2/M3$) & F29 other deposits (term \& redeemable at
-  notice), F521 money-market-fund shares &
-  accessible at short notice / maturity, minimal price risk \\
-T3 --- marketable & F3 debt securities, F511 listed shares, F522 non-MMF
-  investment-fund shares &
-  sellable within days at market price (carries price risk) \\
+  notice), F521 MMF shares, \textbf{F31 short-term debt securities} &
+  accessible at short notice / maturity, little duration risk \\
+T3 --- marketable & \textbf{F32 long-term debt securities}, F511 listed shares,
+  F522 non-MMF investment-fund shares &
+  sellable within days at market price (duration / price risk) \\
 T4 --- illiquid / contractual & F512, F519 unlisted \& other equity; F6
   insurance, pension \& guarantee schemes &
   locked, contractual, or with no ready secondary market \\
@@ -320,14 +330,17 @@ levels and monthly changes, and event-windows the February 2022 invasion.
 VIX (bottom) against the GPR index. Premia rise and jump with geopolitical
 tension.}
 
-\paragraph{Status.} This script requires FRED, which was unreachable from the
-build environment, so Figure~\ref{fig:risk_premia_vs_gpr} regenerates when
-\code{python3 risk\_premia.py} is run on a machine with FRED access; the FRED
-identifiers are standard and identical in form to the project's existing FRED
-pulls. Expected reading: positive correlations and a clear upward jump after
-February 2022 --- geopolitical tension is observably priced. This is an
-\emph{enabling} fact (the uncertainty is real and measurable in markets) rather
-than direct evidence on the household saving motive.
+\paragraph{Status.} The figure shows the \emph{sovereign} (Italy--Germany) spread,
+pulled from the ECB Data Portal --- a fallback that renders this gauge even when
+FRED is unreachable. The BTP--Bund spread jumped about $+0.6$\,pp at the February
+2022 invasion; over the full sample its \emph{level} correlation with GPR is muted
+because the 2011--12 euro debt crisis dominates the series, so the event-window
+jump is the cleaner read. Running \code{python3 risk\_premia.py} with FRED access
+adds the credit spread (euro high-yield OAS) and the VIX, which show clear positive
+GPR co-movement and Feb-2022 jumps. Either way the point holds: geopolitical
+tension is observably priced --- an \emph{enabling} fact (the uncertainty is real
+and measurable in markets) rather than direct evidence on the household saving
+motive.
 
 % ============================================================================
 \section{A forward-looking lens}\label{sec:fwd}
@@ -412,6 +425,34 @@ times is not the same as adequacy in a crisis --- and the most vulnerable
 households cannot do even this.
 
 % ============================================================================
+\section{United States comparison}\label{sec:us}
+% ============================================================================
+
+Does the same picture hold across the Atlantic? We rebuild the liquidity ladder
+for US households from the Federal Reserve Financial Accounts (Z.1) and set it
+against the euro area (Figure~\ref{fig:us_vs_ea_ladder}), and contrast the saving
+rates (Figure~\ref{fig:us_vs_ea_saving}). The expected contrast: US households
+hold far \emph{less} in cash and deposits (T1/T2) and far \emph{more} in
+marketable equities and investment-fund shares (T3) than euro-area households.
+Their precautionary buffer is therefore even more ``sellable-fast'' --- but also
+more exposed to \emph{market price risk}, which sharpens the
+Section~\ref{sec:energy} caveat: a buffer held in equities can fall in value
+exactly when it is needed. The US personal saving rate is also structurally lower
+and more volatile than the euro-area household rate.
+
+\fig{0.84}{us_vs_ea_ladder}{Household financial wealth by liquidity tier, US vs
+euro area (stocks, latest). US: Fed Z.1 (households \& nonprofits); EA: Eurostat.}
+
+\fig{0.84}{us_vs_ea_saving}{Saving rates: US (personal, \emph{net}) vs euro area
+(household, \emph{gross}) --- compare the dynamics, not the levels.}
+
+\paragraph{Status.} \code{us\_comparison.py} is FRED-sourced (Z.1 + the US saving
+rate), so the two figures regenerate when it is run where FRED is reachable. The
+US Z.1 series ids are best-effort and the script prints which resolved; shares are
+taken against \emph{total} financial assets, so an unresolved component shows as a
+residual rather than inflating the liquid share.
+
+% ============================================================================
 \section{What this says about the question}\label{sec:synthesis}
 % ============================================================================
 
@@ -456,9 +497,10 @@ afford it.}
   bounds (\S\ref{sec:data}).
   \item \textbf{Illustrative energy shares.} The by-income energy budget shares
   are stylised and should be verified against the Household Budget Survey.
-  \item \textbf{Pending data.} The risk-premia figure regenerates on a machine
-  with FRED access. All series are pulled live and revised --- regenerate before
-  citing.
+  \item \textbf{Pending data.} The two US-comparison figures (and the credit /
+  VIX series within the risk-premia figure) regenerate on a machine with FRED
+  access; the risk-premia sovereign spread already renders via the ECB fallback.
+  All series are pulled live and revised --- regenerate before citing.
 \end{itemize}
 
 \end{document}

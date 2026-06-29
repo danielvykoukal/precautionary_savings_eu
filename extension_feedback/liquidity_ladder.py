@@ -20,14 +20,21 @@ instrument codes), and we compute it on BOTH:
   - FLOWS   (nasa_10_f_tr)  -> where the marginal saving went, re-read on the
     ladder rather than the old binary.
 
-Ladder
+Ladder (assets ranked by liquidity AND maturity/term)
 ------
   T1 instant / settlement (~ M1)        : F21 currency + F22 overnight deposits
   T2 near-money, short term/notice (~M2/M3): F29 other deposits + F521 MMF shares
-  T3 marketable, sellable-fast (price risk): F3 bonds + F511 listed shares
+                                             + F31 SHORT-TERM debt securities
+  T3 marketable, sellable-fast (price/duration risk): F32 LONG-TERM bonds
+                                             + F511 listed shares
                                              + F522 non-MMF investment-fund shares
   T4 illiquid / contractual / long-term : F512/F519 unlisted & other equity
                                              + F6 insurance, pension & guarantees
+
+Splitting debt securities by term (F31 short vs F32 long) is the finer division:
+short-term paper is near-money (M3-eligible, little duration risk), long-term
+bonds carry duration/price risk. Where a vintage lacks F31/F32, F3 is kept whole
+in T3 (a note is printed).
 
 The headline the feedback asks for: the NARROW "cash" share (T1) vs the BROAD
 "sellable-fast" share (T1+T2+T3). If a large slice of household wealth is liquid
@@ -53,8 +60,8 @@ import _common as C
 REPORT = []
 
 TIER_LABELS = ["T1 instant (cash, overnight)",
-               "T2 near-money (term/notice, MMF)",
-               "T3 marketable (bonds, listed shares, funds)",
+               "T2 near-money (term/notice, MMF, ST debt)",
+               "T3 marketable (LT bonds, shares, funds)",
                "T4 illiquid (unlisted equity, insurance/pension)"]
 TIER_COLORS = [C.C_COOL, C.C_GREEN, C.C_ORANGE, C.C_HOT]
 
@@ -120,10 +127,20 @@ def build_tiers(long):
     else:
         illiquid_eq = pd.Series(0.0, index=piv.index)
 
+    # debt securities by term: short-term (F31) is near-money (M3-eligible, little
+    # duration risk) -> T2; long-term (F32) carries duration/price risk -> T3.
+    # Fall back to the whole F3 in T3 where the maturity split is unavailable.
+    if ("F31" in cols) or ("F32" in cols):
+        shortdebt, longdebt = _col(piv, "F31"), _col(piv, "F32")
+        notes.append("debt securities split by term: F31 short-term -> T2 (near-money), F32 long-term -> T3")
+    else:
+        shortdebt, longdebt = pd.Series(0.0, index=piv.index), _col(piv, "F3")
+        notes.append("debt securities not split by maturity (F3 whole -> T3)")
+
     out = pd.DataFrame(index=piv.index)
     out["T1"] = _col(piv, "F21") + _col(piv, "F22")
-    out["T2"] = _col(piv, "F29") + mmf
-    out["T3"] = _col(piv, "F3") + listed + nonmmf_funds
+    out["T2"] = _col(piv, "F29") + mmf + shortdebt
+    out["T3"] = longdebt + listed + nonmmf_funds
     out["T4"] = illiquid_eq + _col(piv, "F6")
     out["total"] = total
     # drop years without a usable denominator: deposits (F2x) run back to the
@@ -168,14 +185,16 @@ def plot_stocks(df, geo):
     ax.stackplot(df["year"], *shares, labels=TIER_LABELS, colors=TIER_COLORS, alpha=0.88)
     ax.plot(df["year"], df["broad_liquid_share"], color="black", lw=2.2, ls="--",
             label="broad sellable-fast (T1+T2+T3)")
-    ax.axvline(2021.5, color="grey", ls=":", lw=1)
     ax.set_ylim(0, 100)
+    C.mark_periods(ax, year_axis=True, shade=False)   # stack hides bands; keep line+labels
     ax.set_ylabel("share of household financial assets (%)")
     ax.set_xlabel("year")
     ax.set_title(f"What households actually hold, ranked by liquidity\n"
                  f"euro-area household financial wealth by tier ({geo}, stocks)",
                  fontweight="bold")
     ax.legend(frameon=False, fontsize=8, loc="center left", bbox_to_anchor=(1.01, 0.5))
+    C.caveat(fig, "Stocks (nasa_10_f_bs). Dashed line = broad sellable-fast (T1+T2+T3). "
+                  "T4 is mostly insurance/pension entitlements + unlisted business equity.")
     C.savefig(fig, "liquidity_ladder_stocks.png")
 
 
@@ -186,15 +205,15 @@ def plot_flows(df, geo):
     for i, (lab, color) in enumerate(zip(TIER_LABELS, TIER_COLORS), start=1):
         ax.plot(df["year"], df[f"T{i}"] / 1000.0, color=color, lw=2.3, marker="o",
                 ms=3, label=lab)
-    ax.axvline(2021.5, color="grey", ls="--", lw=1)
-    ax.text(2021.4, ax.get_ylim()[1] * 0.96, "ECB hiking\nbegins (2022)",
-            fontsize=8, color="grey", va="top", ha="right")
+    C.mark_periods(ax, year_axis=True, shade=True)
     ax.set_ylabel("net flow into the tier (EUR bn / yr)")
     ax.set_xlabel("year")
     ax.set_title(f"Where the marginal saving went, re-read on the ladder\n"
                  f"euro-area household net financial flows by liquidity tier ({geo})",
                  fontweight="bold")
     ax.legend(frameon=False, fontsize=8, loc="upper left")
+    C.caveat(fig, "Flows (nasa_10_f_tr). After 2022 the cash (T1) flow collapses but T2/T3 "
+                  "surge: the buffer moved up the ladder, staying sellable-fast.")
     C.savefig(fig, "liquidity_ladder_flows.png")
 
 
@@ -202,8 +221,8 @@ def main():
     say("#" * 72)
     say("# Liquidity ladder — household assets by term & liquidity")
     say("#" * 72)
-    say("Tiers: T1 instant (F21,F22) | T2 near-money (F29,F521) | "
-        "T3 marketable (F3,F511,F522) | T4 illiquid (F512/F519,F6)")
+    say("Tiers: T1 instant (F21,F22) | T2 near-money (F29,F521,F31 ST-debt) | "
+        "T3 marketable (F32 LT-bonds,F511,F522) | T4 illiquid (F512/F519,F6)")
 
     results = {}
 
