@@ -43,7 +43,7 @@
 
 \title{\textbf{Precautionary Saving in Europe: A Descriptive Overview}\\[3pt]
        \large Structural vs Cyclical, the Map, Spending, and What Households Hold}
-\author{Project documentation --- descriptive extension (Wave 1)}
+\author{Project documentation --- descriptive extension}
 \date{\today}
 
 \begin{document}
@@ -65,19 +65,20 @@ above its 2019 level while goods flattened, reconciling high saving with strong
 services; and the risky (equity \& funds) share of household wealth rose about
 $+8$ pp over the decade ($29\%\!\to\!37\%$) even as deposits held near $31\%$. All
 figures use free data (Eurostat + GISCO; no FRED) from a live run on \today\ and
-should be regenerated before citation. This is Wave 1 (ideas 1, 4, 5, 6); the
-demographics/pension and US-history pieces follow in Wave 2.
+should be regenerated before citation. It covers all six descriptive ideas:
+structural-vs-cyclical, the map, goods-vs-services, the asset mix, demographics \&
+pensions, and the US discrepancy.
 \end{abstract}
 
 \tableofcontents
 \bigskip\hrule\bigskip
 
 % ============================================================================
-\section{Why descriptive, and what these four pictures show}\label{sec:intro}
+\section{Why descriptive, and what these pictures show}\label{sec:intro}
 % ============================================================================
 The companion \code{../extension\_feedback/} folder asks \emph{why} the saving
 rate is high (a precautionary, liquidity-tiered reading). The supervisors asked
-to step back first and describe the phenomenon. This note does that with four
+to step back first and describe the phenomenon. This note does that with six
 self-contained charts, each a standalone script reusing the project helpers and
 the house style (shaded COVID / energy-hiking bands, a dashed Feb-2022 line,
 direct annotations, an italic footnote). It motivates, rather than tests, the
@@ -151,6 +152,46 @@ core/North and lower in the South.
 household financial assets, by country (latest).}
 
 % ============================================================================
+\section{Demographics and pensions}\label{sec:demo}
+% ============================================================================
+Do aging and pension design move household saving? Two cross-country scatters
+(Figure~\ref{fig:demographics_pensions}). \emph{(a)} The old-age dependency ratio
+is, if anything, \emph{weakly negatively} related to the saving rate
+($r\approx-0.14$): older Southern economies save \emph{less}, not more, so aging
+does not mechanically lift saving. \emph{(b)} A funded-pension proxy --- the
+insurance \& pension share of household assets (F6), high where households
+actually \emph{hold} pension assets and low under pay-as-you-go state promises ---
+is \emph{weakly positively} related to saving ($r\approx+0.34$): big funded systems
+(Netherlands, Denmark) coexist with solid saving, not low saving. So "good pensions
+$\Rightarrow$ less private saving" is not clear in the cross-section --- pensions
+shape \emph{where} wealth sits (funded systems hold more in F6/F5) more than
+\emph{how much} is saved.
+
+\fig{0.96}{demographics_pensions}{Cross-country: old-age dependency vs the saving
+rate (left) and the funded-pension proxy (F6 share) vs the saving rate (right),
+latest year; Eurostat \dataset{demo\_pjanind}, \dataset{tec00131},
+\dataset{nasa\_10\_f\_bs}.}
+
+% ============================================================================
+\section{Why Europeans look like cautious savers}\label{sec:caution}
+% ============================================================================
+The clearest US--Europe difference is not how \emph{much} households save but
+\emph{how} they hold it (Figure~\ref{fig:us_vs_ea_caution}). US households hold
+about \textbf{57\%} of their financial wealth in equity \& investment funds versus
+\textbf{${\sim}37\%$} in the euro area --- roughly $1.5\times$ --- with the mirror
+image in deposits (US ${\sim}11\%$ vs euro area ${\sim}31\%$). The gap is large and
+\emph{persistent} across the last two decades. The institutional history behind it:
+the US built a funded, equity-heavy private-pension system (401(k)/IRA) and an
+equity-investing culture, while much of continental Europe leaned on
+\emph{pay-as-you-go state pensions} and a bank-deposit culture. European households
+therefore carry less market risk and look more "cautious" --- a structural,
+pension-rooted difference, not merely preferences.
+
+\fig{0.86}{us_vs_ea_caution}{Risky (equity \& funds, F5) and non-risky (deposits,
+F2) shares of household financial assets, US vs euro area, over time. US: OECD
+financial accounts; euro area: Eurostat \dataset{nasa\_10\_f\_bs}.}
+
+% ============================================================================
 \section{Synthesis}\label{sec:synth}
 % ============================================================================
 \begin{enumerate}[label=\arabic*.]
@@ -162,11 +203,16 @@ household financial assets, by country (latest).}
   goods$\rightarrow$services rotation (\S\ref{sec:goods}).
   \item Households still hold a large \textbf{non-risky} base, but \textbf{equity
   involvement has grown} markedly over the decade (\S\ref{sec:compose}).
+  \item \textbf{Aging and pension design} move household saving only weakly in the
+  cross-section; pensions shape \emph{where} wealth sits more than how much is saved
+  (\S\ref{sec:demo}).
+  \item Versus the US, euro-area households are not low savers so much as
+  \textbf{cautious holders} --- far less equity, far more cash --- a structural,
+  pension-rooted difference (\S\ref{sec:caution}).
 \end{enumerate}
 These descriptive facts motivate the hypothesis work in
 \code{../extension\_feedback/}: a precautionary, liquidity-tiered reading of why
-the rate is high and where the money sits. Wave 2 will add demographics \& pension
-systems and the US discrepancy / pension history. All series are pulled live and
-revised --- regenerate before citing.
+the rate is high and where the money sits. All series are pulled live and revised
+--- regenerate before citing.
 
 \end{document}

@@ -10,8 +10,9 @@ energy-hiking bands, annotations, an italic footnote), reuses the helpers in
 `_common.py`, and writes a figure + a `*.md` report + CSVs. All data is free; no
 FRED needed.
 
-This is **Wave 1** (ideas 1, 4, 5, 6). Wave 2 (demographics & pensions; the US
-discrepancy / pension history) is planned next.
+This now covers **all six descriptive ideas (1–6)** — Wave 1 (structural-vs-cyclical,
+the map, goods-vs-services, the asset mix) and Wave 2 (demographics & pensions; the
+US discrepancy / pension history).
 
 ## How to run
 
@@ -29,6 +30,8 @@ bash run.sh                          # or run any script on its own
 | 4 | **Europe map** | `europe_map.py` | Choropleth of the household saving rate by country (Germany & the North dark, the South light), numbers annotated. geopandas, with a matplotlib-GeoJSON fallback. | `../data/country_saving_annual.csv` + GISCO |
 | 5 | **Goods vs services** | `goods_vs_services.py` | Real consumption of goods vs services (2019=100) vs the saving rate — the goods→services rotation behind high saving. | Eurostat `nama_10_fcs` |
 | 6 | **What households save in** | `saving_composition_evolution.py` | Non-risky (F2 deposits) vs risky (F5 equity & funds) share of household wealth over time, + a cross-country snapshot. | Eurostat `nasa_10_f_bs` |
+| 2 | **Demographics & pensions** | `demographics_pensions.py` | Old-age dependency vs saving, and a funded-pension proxy (F6 share) vs saving — cross-country scatters. Do aging / good pensions move saving? | Eurostat `demo_pjanind` + `nasa_10_f_bs` |
+| 3 | **US caution** | `us_caution.py` | US vs euro-area equity (F5) and deposit (F2) shares over time — the persistent gap, with a pension-history narrative for why Europeans look cautious. | OECD (US, no FRED) + Eurostat (EA) |
 
 ## Headline descriptive findings (live run)
 
@@ -43,6 +46,12 @@ bash run.sh                          # or run any script on its own
 - **Equity involvement grew.** The risky (F5) share rose ~+8 pp over the decade
   (29%→37%) and is now the largest single instrument, though deposits + pensions
   (non-risky) still dominate combined.
+- **Aging & pensions move saving only weakly.** Old-age dependency↔saving ≈ −0.14;
+  the funded-pension proxy (F6)↔saving ≈ +0.34 — pensions shape *where* wealth sits
+  more than *how much* is saved.
+- **Cautious holders, not low savers.** US households hold ~57% of financial wealth
+  in equity & funds vs ~37% in the euro area (and far less cash) — a large,
+  persistent, pension-rooted gap.
 
 See `findings.md` for the full write-up and `documentation.pdf` for the figures.
 

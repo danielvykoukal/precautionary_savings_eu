@@ -4,16 +4,16 @@ Descriptive #4 --- Household saving rates across Europe (a map)
 ==============================================================
 
 Supervisor idea: a zoomed-in map of Europe with the saving-rate numbers ---
-Germany vs Southern Europe.
+Germany vs Southern Europe. One of the key deliverables, so it is built to stand
+out and to be readable: a choropleth shaded high (dark) to low (light), every
+country's number printed with a white halo so it reads on any fill, and a ranked
+side list so no value is ever lost on a small country.
 
-A choropleth of the gross household saving rate by country (latest year),
-shaded high (dark) to low (light), with each country's number annotated. It
-uses geopandas when available (the clean path) and otherwise renders the same
-choropleth directly from the GISCO GeoJSON with matplotlib, so the figure always
-generates.
+Renders with geopandas when available; otherwise it draws the same choropleth
+directly from the GISCO GeoJSON with matplotlib (so it always generates).
 
-Data: ../data/country_saving_annual.csv (Eurostat tec00131); country boundaries
-from Eurostat GISCO. Greece is 'EL' in Eurostat but 'GR' in GISCO (mapped).
+Data: ../data/country_saving_annual.csv (Eurostat tec00131); GISCO boundaries.
+Greece is 'EL' in Eurostat but 'GR' in GISCO (mapped).
     python europe_map.py
 """
 
@@ -23,14 +23,20 @@ import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.patheffects as pe
 
 import _common as C
 
 REPORT = []
 GISCO_URL = ("https://gisco-services.ec.europa.eu/distribution/v2/countries/"
              "geojson/CNTR_RG_20M_2020_4326.geojson")
-EXTENT = (-25, 45, 34, 72)   # Europe bbox (lon_min, lon_max, lat_min, lat_max)
+EXTENT = (-12, 34, 34.5, 71.5)          # Europe bbox (lon_min, lon_max, lat_min, lat_max)
 GISCO_TO_ESTAT = {"GR": "EL", "GB": "UK"}
+CMAP = plt.cm.YlGnBu
+OCEAN = "#eaf2fa"
+NODATA = "#dfe3e6"
+MIN_LABEL_AREA = 3.0                     # deg^2; below this, label only in the side list
 
 
 def say(line=""):
@@ -51,7 +57,7 @@ def load_saving():
     return df[y].dropna().to_dict(), y
 
 
-# ---- geometry helpers (matplotlib fallback path) ---------------------------
+# ---- geometry helpers ------------------------------------------------------
 def _rings(geom):
     t = geom.get("type")
     if t == "Polygon":
@@ -61,78 +67,108 @@ def _rings(geom):
     return []
 
 
-def _bbox_area(ring):
-    xs = [p[0] for p in ring]; ys = [p[1] for p in ring]
-    return (max(xs) - min(xs)) * (max(ys) - min(ys))
+def _shoelace_area(ring):
+    x = [p[0] for p in ring]; y = [p[1] for p in ring]
+    return abs(sum(x[i] * y[i + 1] - x[i + 1] * y[i]
+                   for i in range(-1, len(ring) - 1))) / 2.0
 
 
-def draw_matplotlib(features, saving, year):
-    import matplotlib.colors as mcolors
-    from matplotlib.cm import ScalarMappable
-    vals = list(saving.values())
-    norm = mcolors.Normalize(vmin=min(vals), vmax=max(vals))
-    cmap = plt.cm.YlGnBu
-    fig, ax = plt.subplots(figsize=(9.2, 9))
+def _centroid(ring):
+    return float(np.mean([p[0] for p in ring])), float(np.mean([p[1] for p in ring]))
+
+
+def _halo_label(ax, x, y, text, fill_rgba, fontsize=10):
+    """Bold value with a contrasting halo so it reads on any fill colour."""
+    r, g, b = mcolors.to_rgb(fill_rgba)
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    txt, halo = ("white", "#202020") if lum < 0.5 else ("#202020", "white")
+    ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, fontweight="bold",
+            color=txt, zorder=6,
+            path_effects=[pe.withStroke(linewidth=2.6, foreground=halo)])
+
+
+# ---- the two renderers (both build {geo: (cx, cy, area, color)}) ------------
+def draw_matplotlib(features, saving, norm):
+    fig, axm, axl = _new_fig()
+    cents = {}
     for feat in features:
         cid = str(feat["properties"].get("CNTR_ID"))
         geo = GISCO_TO_ESTAT.get(cid, cid)
         val = saving.get(geo)
-        color = cmap(norm(val)) if val is not None else "#e9e9e9"
+        color = CMAP(norm(val)) if val is not None else NODATA
         rings = _rings(feat["geometry"])
         for ring in rings:
-            ax.fill([p[0] for p in ring], [p[1] for p in ring],
-                    facecolor=color, edgecolor="white", linewidth=0.4, zorder=1)
+            axm.fill([p[0] for p in ring], [p[1] for p in ring],
+                     facecolor=color, edgecolor="white", linewidth=0.7, zorder=1)
         if val is not None and rings:
-            big = max(rings, key=_bbox_area)
-            cx = np.mean([p[0] for p in big]); cy = np.mean([p[1] for p in big])
-            if EXTENT[0] < cx < EXTENT[1] and EXTENT[2] < cy < EXTENT[3]:
-                ax.text(cx, cy, f"{val:.0f}", ha="center", va="center",
-                        fontsize=7.5, fontweight="bold", color="black", zorder=3)
-    ax.set_xlim(EXTENT[0], EXTENT[1]); ax.set_ylim(EXTENT[2], EXTENT[3])
-    ax.set_aspect(1.5); ax.axis("off")
-    sm = ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
-    fig.colorbar(sm, ax=ax, shrink=0.5, pad=0.01, label="gross household saving rate (%)")
-    _finish(fig, ax, year)
+            big = max(rings, key=_shoelace_area)
+            cx, cy = _centroid(big)
+            cents[geo] = (cx, cy, _shoelace_area(big), color)
+    return fig, axm, axl, cents
 
 
-def draw_geopandas(gj, saving, year):
+def draw_geopandas(gj, saving, norm):
     import geopandas as gpd
     gdf = gpd.GeoDataFrame.from_features(gj["features"], crs="EPSG:4326")
     gdf["geo"] = gdf["CNTR_ID"].replace(GISCO_TO_ESTAT)
-    sav = pd.Series(saving, name="saving").rename_axis("geo").reset_index()
-    gdf = gdf.merge(sav, on="geo", how="left")
-    fig, ax = plt.subplots(figsize=(9.2, 9))
-    gdf.plot(ax=ax, column="saving", cmap="YlGnBu", edgecolor="white", linewidth=0.4,
-             missing_kwds={"color": "#e9e9e9"}, legend=True,
-             legend_kwds={"shrink": 0.5, "pad": 0.01,
-                          "label": "gross household saving rate (%)"})
-    for _, row in gdf.dropna(subset=["saving"]).iterrows():
-        c = row.geometry.representative_point()
-        if EXTENT[0] < c.x < EXTENT[1] and EXTENT[2] < c.y < EXTENT[3]:
-            ax.annotate(f"{row['saving']:.0f}", (c.x, c.y), ha="center", va="center",
-                        fontsize=7.5, fontweight="bold")
-    ax.set_xlim(EXTENT[0], EXTENT[1]); ax.set_ylim(EXTENT[2], EXTENT[3]); ax.axis("off")
-    _finish(fig, ax, year)
+    gdf["val"] = gdf["geo"].map(saving)
+    fig, axm, axl = _new_fig()
+    gdf.plot(ax=axm, color=[CMAP(norm(v)) if pd.notna(v) else NODATA for v in gdf["val"]],
+             edgecolor="white", linewidth=0.7, zorder=1)
+    cents = {}
+    for _, row in gdf.dropna(subset=["val"]).iterrows():
+        rp = row.geometry.representative_point()
+        cents[row["geo"]] = (rp.x, rp.y, row.geometry.area, CMAP(norm(row["val"])))
+    return fig, axm, axl, cents
 
 
-def _finish(fig, ax, year):
-    ax.set_title(f"Household saving rates across Europe ({year})\n"
-                 "Germany and the North save most; the South least", fontweight="bold")
-    C.caveat(fig, "Eurostat gross household saving rate (tec00131); GISCO boundaries. "
-                  "The North-South gap is structural, not new — it predates the energy shock.")
+def _new_fig():
+    fig = plt.figure(figsize=(12.5, 11))
+    gs = fig.add_gridspec(1, 2, width_ratios=[3.5, 1.0], wspace=0.0)
+    axm = fig.add_subplot(gs[0]); axl = fig.add_subplot(gs[1])
+    axm.set_facecolor(OCEAN)
+    return fig, axm, axl
+
+
+def finish(fig, axm, axl, saving, cents, norm, year):
+    # value labels on the map (skip the tiniest countries -> the side list covers them)
+    for geo, (cx, cy, area, color) in cents.items():
+        if area >= MIN_LABEL_AREA and EXTENT[0] < cx < EXTENT[1] and EXTENT[2] < cy < EXTENT[3]:
+            _halo_label(axm, cx, cy, f"{saving[geo]:.0f}", color)
+    axm.set_xlim(EXTENT[0], EXTENT[1]); axm.set_ylim(EXTENT[2], EXTENT[3])
+    axm.set_aspect(1.55); axm.axis("off")
+    axm.set_title(f"Household saving rates across Europe, {year}",
+                  fontsize=16, fontweight="bold", pad=8)
+    axm.text(0.5, 1.005, "Germany and the North save most; the South least",
+             transform=axm.transAxes, ha="center", va="bottom", fontsize=10.5, color="#555")
+
+    # ranked side list -> every value readable, doubles as the legend
+    axl.axis("off"); axl.set_xlim(0, 1); axl.set_ylim(0, 1)
+    items = sorted(saving.items(), key=lambda kv: kv[1], reverse=True)
+    axl.text(0.0, 0.985, "saving rate (% of disp. income)", fontsize=9.5,
+             fontweight="bold", va="top")
+    n = len(items); top = 0.945; row = 0.90 / n
+    for i, (geo, val) in enumerate(items):
+        y = top - i * row
+        axl.add_patch(plt.Rectangle((0.0, y - row * 0.42), 0.16, row * 0.84,
+                                     facecolor=CMAP(norm(val)), edgecolor="white", lw=0.6))
+        axl.text(0.22, y, f"{geo}", fontsize=9.5, va="center", fontweight="bold")
+        axl.text(0.97, y, f"{val:+.0f}%", fontsize=9.5, va="center", ha="right")
+
+    C.caveat(fig, "Eurostat gross household saving rate (tec00131); GISCO boundaries. The "
+                  "North-South gap is structural, not new -- it predates the energy shock.")
     C.savefig(fig, "europe_saving_map.png")
 
 
 def main():
     say("#" * 72)
-    say("# Household saving rates across Europe — choropleth")
+    say("# Household saving rates across Europe -- choropleth")
     say("#" * 72)
     saving, year = load_saving()
+    norm = mcolors.Normalize(vmin=min(saving.values()), vmax=max(saving.values()))
     top = sorted(saving.items(), key=lambda kv: kv[1], reverse=True)
-    say(f"\nSaving rate by country, {year} (top & bottom):")
-    for g, v in top[:4] + [("...", float("nan"))] + top[-4:]:
-        say(f"  {g}: {v:.1f}%" if g != "..." else "  ...")
-    say("North-South spread is the story: Germany and the Nordics high, the South low.")
+    say(f"\nSaving rate by country, {year}: highest {top[0][0]} {top[0][1]:.1f}%, "
+        f"lowest {top[-1][0]} {top[-1][1]:.1f}%. North-South spread is the story.")
 
     try:
         gj = json.loads(C.http_get(GISCO_URL).text)
@@ -144,11 +180,12 @@ def main():
 
     try:
         import geopandas  # noqa: F401
-        draw_geopandas(gj, saving, year)
+        fig, axm, axl, cents = draw_geopandas(gj, saving, norm)
         say("  rendered with geopandas")
     except Exception as e:
         say(f"  geopandas unavailable/failed ({type(e).__name__}); matplotlib renderer")
-        draw_matplotlib(gj["features"], saving, year)
+        fig, axm, axl, cents = draw_matplotlib(gj["features"], saving, norm)
+    finish(fig, axm, axl, saving, cents, norm, year)
 
     pd.Series(saving, name="saving_rate").rename_axis("geo").to_csv(
         os.path.join(C.DATA, "europe_saving_map.csv"))

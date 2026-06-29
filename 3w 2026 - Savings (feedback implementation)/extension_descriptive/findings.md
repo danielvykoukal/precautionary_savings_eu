@@ -1,7 +1,7 @@
 # Findings — descriptive overview
 
-*Companion to the scripts (Wave 1: ideas 1, 4, 5, 6). Numbers from a clean live
-run on 2026-06-29 (Eurostat + GISCO; no FRED). Regenerate before citing.*
+*Companion to the scripts (all six descriptive ideas). Numbers from a clean live
+run on 2026-06-29 (Eurostat + GISCO + OECD; no FRED). Regenerate before citing.*
 
 > The supervisors asked to look at the saving question **descriptively first**.
 > Four pictures set the scene before any hypothesis testing: is the high rate a
@@ -50,6 +50,32 @@ is still large, but **equity involvement has clearly grown** — more euro-area
 households now carry market exposure. A cross-country snapshot shows the risky
 share is **higher in the North/core and lower in the South**.
 
+## 5. Demographics & pensions (`demographics_pensions.py`)
+
+Do aging and pension design move household saving? Two cross-country scatters.
+**(a) Aging:** the old-age dependency ratio is, if anything, **weakly negatively**
+related to the saving rate (corr ≈ **−0.14**) — older Southern economies save
+*less*, not more, so aging does not mechanically lift saving. **(b) Funded
+pensions:** using the insurance & pension share of household assets (F6) as a
+funded-pillar proxy — high where households actually *hold* pension assets, low
+under pay-as-you-go state promises — the link to saving is **weakly positive**
+(corr ≈ **+0.34**): big funded systems (Netherlands, Denmark) coexist with solid
+saving, not low saving. So "good pensions ⇒ less private saving" does not hold in
+the cross-section; **pensions shape *where* wealth sits more than *how much* is
+saved**.
+
+## 6. Why Europeans look like cautious savers (`us_caution.py`)
+
+The clearest US–Europe difference is not *how much* households save but *how* they
+hold it. US households hold about **57%** of their financial wealth in equity &
+investment funds vs **~37%** in the euro area (~1.5×), with the mirror image in
+deposits (US ~11% vs euro area ~31%) — a **large, persistent** gap across two
+decades. The institutional history: the US built a funded, equity-heavy
+private-pension system (401(k)/IRA) and an equity-investing culture; much of
+continental Europe leaned on **pay-as-you-go state pensions** and bank deposits.
+European households therefore carry less market risk and look more "cautious" — a
+**structural, pension-rooted** difference, not just preferences.
+
 ---
 
 ## Synthesis (the descriptive scene-setter)
@@ -61,6 +87,10 @@ share is **higher in the North/core and lower in the South**.
    (§3).
 4. Households still hold a large **non-risky** base but **equity involvement has
    grown** markedly over the decade (§4).
+5. **Aging and pension design** move household saving only weakly cross-country;
+   pensions shape *where* wealth sits more than *how much* (§5).
+6. Versus the US, euro-area households are **cautious holders, not low savers** —
+   far less equity, far more cash — a structural, pension-rooted gap (§6).
 
 These motivate the hypothesis work in `../extension_feedback/`: a precautionary,
 liquidity-tiered reading of *why* the rate is high and *where* the money sits.
