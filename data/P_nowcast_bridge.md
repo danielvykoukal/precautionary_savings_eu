@@ -2,7 +2,7 @@
 ####################################################################
 # Bridge nowcast of the euro-area quarterly saving rate
 ####################################################################
-  sample 2000-Q01…2025-Q10  (104 quarters); predictors: sav_intent, unemp_exp, m1_growth, m3_growth, gpr, epu, rate
+  sample 2000Q1…2025Q4  (104 quarters); predictors: sav_intent, unemp_exp, m1_growth, m3_growth, gpr, epu, rate
 
 Full-sample bridge: R-squared = 0.710
 predictor                        coef       t       p

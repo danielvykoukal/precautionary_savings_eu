@@ -654,3 +654,9 @@ expectations, M1/M3 growth, GPR, EPU, ECB rate).
   near-random-walk series they add little over persistence. The level miss in the
   *first* (levels) version was itself informative — the post-2022 elevation is
   structural, not something the cyclical leads encode.
+- **Tested and rejected:** adding a high-frequency *hard* consumption indicator
+  (Eurostat retail-sales volume YoY, `sts_trtu_m`) did **not** help — its bridge
+  coefficient is insignificant (p≈0.5) and it *worsened* the bridge's pseudo-OOS
+  (it overfits), while leaving the MFDFM unchanged. Retail is goods-only (~⅓ of
+  consumption), redundant with the saving-intentions survey, and silent on the
+  income side. Loader kept (`_nowcast_data.retail_growth`, off by default).
