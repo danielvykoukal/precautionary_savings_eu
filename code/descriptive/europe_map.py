@@ -26,7 +26,25 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
 
+import glob
 import _common as C
+
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+C.ROOT = os.path.dirname(os.path.dirname(C.HERE))      # code/descriptive -> repo root
+C.ROOT_DATA = os.path.join(C.ROOT, "data")
+C.DATA = os.path.join(C.ROOT, "data")
+C.FIG = os.path.join(C.ROOT, "figures")
+_orig_root_csv = C.root_csv
+def _tagged_root_csv(name, required=True):
+    if not os.path.exists(os.path.join(C.ROOT_DATA, name)):
+        hits = glob.glob(os.path.join(C.ROOT_DATA, "?_" + name))
+        if hits:
+            return pd.read_csv(hits[0])
+    return _orig_root_csv(name, required)
+C.root_csv = _tagged_root_csv
+
+# High Russia/energy exposure (folded in from the deleted B2 country bar).
+HIGH_EXPOSURE = {"DE", "AT", "FI", "PL", "CZ", "SK", "HU", "SI", "EE", "LV", "LT"}
 
 REPORT = []
 GISCO_URL = ("https://gisco-services.ec.europa.eu/distribution/v2/countries/"
@@ -148,18 +166,23 @@ def finish(fig, axm, axl, saving, cents, norm, year):
     items = sorted(saving.items(), key=lambda kv: kv[1], reverse=True)
     axl.text(0.0, 0.99, "Saving rate", fontsize=11, fontweight="bold", va="top")
     axl.text(0.0, 0.957, f"% of disp. income · {year}", fontsize=8.3, va="top", color="#555")
-    n = len(items); topy = 0.905; row = 0.88 / n
+    axl.text(0.0, 0.935, "●  high Russia/energy exposure", fontsize=7.6, va="top",
+             color="#c0392b")
+    n = len(items); topy = 0.895; row = 0.86 / n
     for i, (geo, val) in enumerate(items):
         y = topy - i * row
         axl.add_patch(plt.Rectangle((0.0, y - row * 0.42), 0.17, row * 0.84,
                                      facecolor=CMAP(norm(val)), edgecolor="white", lw=0.6))
+        mark = " ●" if geo in HIGH_EXPOSURE else ""
         axl.text(0.23, y, f"{geo}", fontsize=9.5, va="center", fontweight="bold")
+        if mark:
+            axl.text(0.40, y, "●", fontsize=7.5, va="center", color="#c0392b")
         axl.text(0.99, y, f"{val:+.0f}%", fontsize=9.5, va="center", ha="right")
 
     C.caveat(fig, f"Eurostat gross household saving rate (tec00131). {year} is the latest year with "
                   "full country coverage -- 2025 annual data is still incomplete (only ~7 of 21 "
                   "countries). GISCO boundaries; the North-South gap is structural, predating the shock.")
-    C.savefig(fig, "europe_saving_map.png")
+    C.savefig(fig, "O3_europe_saving_map.png")
 
 
 def main():
@@ -176,7 +199,7 @@ def main():
         gj = json.loads(C.http_get(GISCO_URL).text)
     except Exception as e:
         say(f"  GISCO boundaries failed: {e}")
-        with open(os.path.join(C.DATA, "europe_map.md"), "w") as f:
+        with open(os.path.join(C.DATA, "O_europe_map.md"), "w") as f:
             f.write("```\n" + "\n".join(REPORT) + "\n```\n")
         return
 
@@ -190,8 +213,8 @@ def main():
     finish(fig, axm, axl, saving, cents, norm, year)
 
     pd.Series(saving, name="saving_rate").rename_axis("geo").to_csv(
-        os.path.join(C.DATA, "europe_saving_map.csv"))
-    with open(os.path.join(C.DATA, "europe_map.md"), "w") as f:
+        os.path.join(C.DATA, "O_europe_saving_map.csv"))
+    with open(os.path.join(C.DATA, "O_europe_map.md"), "w") as f:
         f.write("```\n" + "\n".join(REPORT) + "\n```\n")
     print(f"\nWrote {os.path.relpath(os.path.join(C.DATA, 'europe_map.md'), C.ROOT)}")
 
