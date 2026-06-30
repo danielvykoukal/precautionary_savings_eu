@@ -607,3 +607,42 @@ liquidity-tiered reading of *why* the rate is high and *where* the money sits.
 
 
 ---
+
+---
+
+# 2026 review — reorganisation + new econometrics
+
+**Figure set pruned/regrouped.** Distributional charts (C, C2, D) moved to
+`archive/distributional/`; the original time-series econometrics outputs (A2, A3)
+and the robustness extensions (E2 event study, E3 local projections, E4 composition)
+to `archive/econometrics/` (reopenable). Dropped B (scatter), F/F2/F6
+(follow-the-money summaries, superseded by F3 + the M decomposition) and K (energy
+squeeze). B2 (country bar) folded into the O3 Europe map. New: F3 rebuilt as a
+net-flow-by-F-code time series; F4b/F5b illiquidity-tilt `T4 − (T1+T2+T3)` variants;
+the M waterfall is now a 2023/24/25 per-year comparison with named asset types; plot
+A gained the ZLB band, project-standard shading and a visible pre-pandemic norm.
+
+## Country panel (`code/econometrics/panel_saving.py`, figure P_panel_coefficients)
+Two-way FE (country + quarter), 16 countries, 2000Q1–2025Q4 (1,648 obs), SE
+clustered by country. `saving_it ~ spread + saving-intentions + unemployment-
+expectations + headline & energy inflation + a_i + g_t`.
+- **The sovereign spread is the one robustly significant driver** (−0.34, p<0.01):
+  fiscally stressed economies save *less* (financial stress dominates any risk-
+  premium precaution). Robust across pooled / country-FE / two-way-FE.
+- Survey saving-intentions and unemployment-expectations carry the expected
+  **positive (precautionary) sign** but are imprecise with only 16 clusters; inflation
+  is insignificant once country + quarter effects are absorbed. Within R² ≈ 0.15.
+
+## Nowcast (`code/econometrics/nowcast_{bridge,mfdfm}.py`, figures P_nowcast_*)
+Quarterly saving rate from monthly leads (saving intentions, unemployment
+expectations, M1/M3 growth, GPR, EPU, ECB rate).
+- **Bridge** (quarter-aggregated regression): full-sample R²=0.71 — saving
+  intentions and M3 growth are the strongest leads. Expanding-window pseudo-OOS
+  (2012–2025) beats the random walk by ~12% RMSE and AR(1) by ~35%, but **ex-2020 it
+  is neck-and-neck** with the naive benchmarks — the rate is very persistent in calm
+  periods.
+- **MFDFM** (`DynamicFactorMQ`, 1 factor): tracks history incl. the COVID spike
+  (in-sample corr 0.68) but the mean-reverting factor under-predicts the elevated
+  2024–25 holdout by ~1.4pp, so the bridge and random walk do better there.
+- **Verdict:** the monthly leads carry real signal, useful mainly in volatile
+  periods; the nowcast is a modest improvement, not a step change.

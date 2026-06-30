@@ -338,29 +338,15 @@ drivers---uncertainty, the ECB rate, and HICP inflation---standardised to
 $z$-scores. They visibly rise together, which is precisely why eyeballing cannot
 isolate the precautionary channel.}
 
-\projfig{0.78}{B_energy_vs_saving_scatter}{\textbf{Leg B.} Each country's peak
-2022 energy inflation (the shock) against its change in saving 2019$\to$2023/24.
-Colour marks editorial Russia/energy exposure; the dashed line is the OLS fit.
-The slope is positive but noisy.}
 
-\projfig{0.62}{B2_saving_by_country_bar}{\textbf{Leg B, levels.} Household saving
-rate by country in the latest year. Germany and the Nordics sit at the top---but
-they were structurally high savers before the war, which is the confound that
-motivates using the \emph{change} (previous figure) for any causal reading.}
 
-\projfig{0.70}{C_saving_by_quintile}{\textbf{Leg C, structure.} Median saving
-rate by income quintile (Eurostat ICW, latest snapshot). The bottom quintile
-\emph{dissaves}; saving climbs steeply to the top. Any rise in the aggregate rate
-is mechanically a story about the upper part of the distribution.}
 
-\projfig{0.70}{C2_expectations_by_income}{\textbf{Leg C, fear.} Expected
-unemployment 12 months ahead by income group (ECB CES). Lower-income households
-fear job loss most, yet (previous figure) can least afford to save---the equity
-twist of the precautionary story.}
 
-\projfig{0.74}{D_icw_slope}{\textbf{Leg C, over time.} The saving rate by
-quintile across the few ICW reference years. Read as a structural shift between
-snapshots, not as an annual path.}
+
+
+
+
+
 
 % ============================================================================
 \section{Econometric methodology}\label{sec:econ}
@@ -589,12 +575,10 @@ subsample (2010+)     & $+0.161$ pp at 6q & $[-0.019,\ +0.340]$ \\
 \end{center}
 The sign is \emph{consistent with} precaution---more uncertainty, more
 saving---but the confidence interval includes zero in both samples, so the effect
-is not statistically distinguishable from no effect. Figure~\ref{fig:A2_irf_saving_to_uncertainty}
+is not statistically distinguishable from no effect. The (now archived/removed) figure
 plots the full-sample IRF with its band.
 
-\projfig{0.66}{A2_irf_saving_to_uncertainty}{Orthogonalised impulse response of
-the saving rate to a $+1$ s.d.\ GPR shock (levels VAR; controls: ECB rate and
-HICP inflation; COVID dummies). The 95\% band straddles zero throughout.}
+
 
 % ----------------------------------------------------------------------------
 \subsection{Step 5 --- Robustness: subsample and proxy choice}
@@ -629,11 +613,9 @@ slightly-\emph{lagging} rather than cleanly leading), and in differences the
 peaks are weaker ($-0.32$ for GPR at $k=-2$). The lead/lag evidence is therefore
 suggestive of co-movement but does \emph{not} pin down a clean
 ``uncertainty-leads-saving'' timing---consistent with the insignificant formal
-tests. Figure~\ref{fig:A3_proxy_leadlag} shows the full profiles.
+tests. The (now archived/removed) figure shows the full profiles.
 
-\projfig{0.92}{A3_proxy_leadlag}{Lead/lag cross-correlation of the saving rate
-with each proxy, in levels (left) and changes (right). $k>0$: proxy leads saving.
-COVID 2020 dropped.}
+
 
 % ============================================================================
 \section{Did rates or fear drive it? The follow-the-money test}\label{sec:followmoney}
@@ -680,7 +662,7 @@ $B6G$) reproduces the published saving rate almost exactly (correlation $+1.00$;
 Table~\ref{tab:reconcile}). The combined-flows line sits a few points \emph{below}
 the saving rate --- the wedge is mainly housing investment, which saving funds but
 is not a financial asset --- yet the two clearly co-move
-(Figure~\ref{fig:F2_total_vs_saving}). This places the composition analysis firmly
+(The (now archived/removed) figure). This places the composition analysis firmly
 inside the saving story: the tilt describes \emph{how the saving in the headline
 rate was deployed}.
 
@@ -702,10 +684,7 @@ year & combined flows & saving rate ($B8G/B6G$) & saving rate (published) \\
 \end{tabular}
 \end{table}
 
-\extfig{0.9}{F2_total_vs_saving}{Combining all the asset flows reproduces the
-saving-rate path. Navy: the published household saving rate. Green dashed: the sum
-of all net financial-asset flows, as a share of disposable income. They co-move
-($\mathrm{corr}=+0.73$); the roughly constant gap is housing investment.}
+
 
 \subsection{Descriptive evidence}
 The destination of saving flipped after the ECB began raising rates in mid-2022.
@@ -1168,15 +1147,14 @@ refinement: the operative uncertainty looks like households' own perceived
 
 A precautionary buffer is only useful if it can cover a \emph{non-deferrable}
 shock; the energy bill is the cleanest example. Two findings
-(Figures~\ref{fig:K2_energy_vs_cash_buffer}--\ref{fig:K_energy_squeeze_by_income}).
+(Figures~the archived figure--the archived figure).
 First, the euro-area energy price level rose about $60\%$ above its 2019 level
 and stayed elevated, while the instant-cash share of household wealth did
 \emph{not} rise to meet it (it touched $21.5\%$ in 2022, then fell back to
 $\sim18\%$ by 2024) --- the non-deferrable bill grew as the cash cushion thinned,
 and households were moving \emph{out} of cash (\S\ref{fbsec:ladder}).
 
-\fig{0.86}{K2_energy_vs_cash_buffer}{The euro-area energy price level (left, 2019$=$100)
-against the instant-cash share of household wealth (right).}
+
 
 Second, the squeeze is \emph{regressive} (Table~\ref{fbtab:energy}): the
 lowest-income quintile spends the largest budget share on energy yet
@@ -1186,8 +1164,7 @@ top-of-distribution phenomenon, and the households most exposed to an energy
 shock are the least able to self-insure --- they have no buffer to draw on, cash
 or otherwise.
 
-\fig{0.78}{K_energy_squeeze_by_income}{Energy budget share (illustrative) versus
-the saving rate, by income quintile. Highest burden meets the thinnest buffer.}
+
 
 \begin{table}[htbp]\centering\small
 \caption{Energy burden and saving capacity by income quintile (Q1 $=$ lowest).
