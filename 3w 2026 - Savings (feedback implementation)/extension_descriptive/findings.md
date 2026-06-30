@@ -13,13 +13,14 @@ run on 2026-06-29 (Eurostat + GISCO + OECD; no FRED). Regenerate before citing.*
 ## 1. Structural or cyclical? (`structural_vs_cyclical.py`)
 
 An HP filter (λ=1600) splits the saving rate into a slow **trend** (structural)
-and a **cycle**. Result: the trend **stepped up ~1.7 pp**, from **12.9% (2012–19)
-to 14.6%** today, while the latest **cycle is ~0** (the rate ≈ its trend). The
-2020 lockdown spike was almost entirely cyclical and has unwound. So the
-persistence is now **mostly structural** — a higher norm — consistent with the
-"saving more for old age as pensions weaken" story, not a transient bump that
-should revert. (Caveat: the 2020 spike distorts the HP trend around 2020; read
-the pre-2020 vs latest step as the structural signal.)
+and a **cycle**. The 2020-21 COVID spike was *forced* saving (people could not
+spend), not a behavioural change, so those quarters are **excluded from the
+filter** (interpolated); the cycle is the real deviation from that de-COVID trend,
+so the spike correctly appears as a large positive **cycle**, not a trend lift.
+Result: the trend **steps up ~2.6 pp**, from **12.5% (2012–19) to 15.1%** today,
+while the latest **cycle is ~0** (the rate ≈ its trend). So the persistence is now
+**mostly structural** — a higher norm — consistent with the "saving more for old
+age as pensions weaken" story, not a transient bump that should revert.
 
 ## 2. The European map (`europe_map.py`)
 

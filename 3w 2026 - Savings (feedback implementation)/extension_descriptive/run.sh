@@ -5,7 +5,7 @@
 #     bash run.sh
 cd "$(dirname "$0")" || exit 1
 
-for s in structural_vs_cyclical.py europe_map.py goods_vs_services.py saving_composition_evolution.py demographics_pensions.py us_caution.py; do
+for s in structural_vs_cyclical.py europe_map.py saving_rate_evolution.py goods_vs_services.py saving_composition_evolution.py demographics_pensions.py us_caution.py; do
   echo ""
   echo "============================================================"
   echo "  $s"

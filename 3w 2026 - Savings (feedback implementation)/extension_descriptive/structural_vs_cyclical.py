@@ -53,7 +53,15 @@ def main():
             f.write("```\n" + "\n".join(REPORT) + "\n```\n")
         return
 
-    cycle, trend = hpfilter(saving, lamb=1600)
+    # The 2020-21 COVID spike was forced saving (people could not spend), not a
+    # behavioural change, and it badly distorts an HP trend. So we EXCLUDE those
+    # quarters from the filter (interpolate linearly across them) and compute the
+    # cycle as the real deviation from that de-COVID trend -- the spike then shows
+    # up (correctly) as a large positive cycle, not as a lift in the structural trend.
+    covid = (saving.index >= "2020-01-01") & (saving.index <= "2021-12-31")
+    hp_in = saving.where(~covid).interpolate(method="linear", limit_direction="both")
+    _, trend = hpfilter(hp_in, lamb=1600)
+    cycle = saving - trend
 
     pre = trend[(trend.index >= "2012-01-01") & (trend.index <= "2019-12-31")].mean()
     latest_t, latest_c = float(trend.iloc[-1]), float(cycle.iloc[-1])
@@ -64,7 +72,9 @@ def main():
         f"+ cycle {latest_c:+.1f} pp")
     say("Reading: a positive structural step = a higher NORM (consistent with saving "
         "more for old age as pensions weaken); a large positive cycle = a temporary "
-        "bump that should revert. The 2020 lockdown spike is almost entirely cyclical.")
+        "bump that should revert. With 2020-21 excluded from the filter, the lockdown "
+        "spike reads as a pure cycle (forced saving), not a change in the norm -- yet "
+        "the trend still steps up, so the post-2022 level is genuinely structural.")
 
     # ---- cyclical drivers (z-scored), to show the cycle is cyclical ----
     drivers = {}
@@ -80,8 +90,8 @@ def main():
     fig, (axT, axB) = plt.subplots(2, 1, figsize=(10, 7.6), sharex=True,
                                    gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.1})
     axT.plot(saving.index, saving.values, color=C.C_MAIN, lw=2.6, label="household saving rate")
-    axT.plot(trend.index, trend.values, color=C.C_HOT, lw=2.0, ls="--",
-             label="structural trend (HP, λ=1600)")
+    axT.plot(trend.index, trend.values, color=C.C_HOT, lw=2.2, ls="--",
+             label="structural trend (HP, 2020-21 excluded)")
     axT.axhline(pre, color=C.C_GREY, ls=":", lw=1.3)
     axT.text(saving.index[0], pre, f" 2012-19 trend {pre:.1f}%", va="bottom", ha="left",
              fontsize=8.5, color=C.C_GREY)
@@ -101,8 +111,9 @@ def main():
     axB.set_xlabel("date")
     axB.legend(frameon=False, fontsize=8, ncol=2, loc="upper left")
 
-    C.caveat(fig, "HP filter (λ=1600). The 2020 lockdown spike distorts the trend around 2020; "
-                  "read the pre-2020 vs latest trend step as the structural signal.")
+    C.caveat(fig, "HP filter (λ=1600) with the 2020-21 COVID forced-saving quarters EXCLUDED "
+                  "(interpolated), so the trend reflects behaviour, not the lockdown spike -- which "
+                  "instead appears as the large positive cycle in the lower panel.")
     C.savefig(fig, "structural_vs_cyclical.png")
 
     out = pd.DataFrame({"saving": saving, "trend": trend, "cycle": cycle})

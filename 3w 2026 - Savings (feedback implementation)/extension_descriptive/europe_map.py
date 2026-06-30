@@ -137,26 +137,28 @@ def finish(fig, axm, axl, saving, cents, norm, year):
             _halo_label(axm, cx, cy, f"{saving[geo]:.0f}", color)
     axm.set_xlim(EXTENT[0], EXTENT[1]); axm.set_ylim(EXTENT[2], EXTENT[3])
     axm.set_aspect(1.55); axm.axis("off")
-    axm.set_title(f"Household saving rates across Europe, {year}",
-                  fontsize=16, fontweight="bold", pad=8)
-    axm.text(0.5, 1.005, "Germany and the North save most; the South least",
-             transform=axm.transAxes, ha="center", va="bottom", fontsize=10.5, color="#555")
+    axm.set_title("Household saving rates across Europe", fontsize=17,
+                  fontweight="bold", pad=24)
+    axm.text(0.5, 1.012, f"gross saving, % of disposable income · {year}  —  "
+             "Germany & the North save most; the South least",
+             transform=axm.transAxes, ha="center", va="bottom", fontsize=9.5, color="#555")
 
     # ranked side list -> every value readable, doubles as the legend
     axl.axis("off"); axl.set_xlim(0, 1); axl.set_ylim(0, 1)
     items = sorted(saving.items(), key=lambda kv: kv[1], reverse=True)
-    axl.text(0.0, 0.985, "saving rate (% of disp. income)", fontsize=9.5,
-             fontweight="bold", va="top")
-    n = len(items); top = 0.945; row = 0.90 / n
+    axl.text(0.0, 0.99, "Saving rate", fontsize=11, fontweight="bold", va="top")
+    axl.text(0.0, 0.957, f"% of disp. income · {year}", fontsize=8.3, va="top", color="#555")
+    n = len(items); topy = 0.905; row = 0.88 / n
     for i, (geo, val) in enumerate(items):
-        y = top - i * row
-        axl.add_patch(plt.Rectangle((0.0, y - row * 0.42), 0.16, row * 0.84,
+        y = topy - i * row
+        axl.add_patch(plt.Rectangle((0.0, y - row * 0.42), 0.17, row * 0.84,
                                      facecolor=CMAP(norm(val)), edgecolor="white", lw=0.6))
-        axl.text(0.22, y, f"{geo}", fontsize=9.5, va="center", fontweight="bold")
-        axl.text(0.97, y, f"{val:+.0f}%", fontsize=9.5, va="center", ha="right")
+        axl.text(0.23, y, f"{geo}", fontsize=9.5, va="center", fontweight="bold")
+        axl.text(0.99, y, f"{val:+.0f}%", fontsize=9.5, va="center", ha="right")
 
-    C.caveat(fig, "Eurostat gross household saving rate (tec00131); GISCO boundaries. The "
-                  "North-South gap is structural, not new -- it predates the energy shock.")
+    C.caveat(fig, f"Eurostat gross household saving rate (tec00131). {year} is the latest year with "
+                  "full country coverage -- 2025 annual data is still incomplete (only ~7 of 21 "
+                  "countries). GISCO boundaries; the North-South gap is structural, predating the shock.")
     C.savefig(fig, "europe_saving_map.png")
 
 

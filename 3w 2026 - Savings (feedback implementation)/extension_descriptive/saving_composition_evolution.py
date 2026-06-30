@@ -112,23 +112,27 @@ def main():
         "(equity & fund) share has grown over the past decade — more euro-area "
         "households now have market exposure, though still a minority of wealth.")
 
-    # ---- figure 1: EA non-risky vs risky over time ----
-    fig, ax = plt.subplots(figsize=(10, 5.4))
-    ax.plot(ea.index, ea["safe_F2"], color=C.C_COOL, lw=2.6, marker="o", ms=3,
-            label="non-risky: currency & deposits (F2)")
-    ax.plot(ea.index, ea["risky_F5"], color=C.C_HOT, lw=2.6, marker="o", ms=3,
-            label="risky: equity & investment funds (F5)")
-    ax.plot(ea.index, ea["inspen_F6"], color=C.C_ACCENT, lw=1.6, ls="--", alpha=0.8,
-            label="insurance & pensions (F6)")
+    # ---- figure 1: EA composition by RISK over time (clean lines + end labels) ----
+    fig, ax = plt.subplots(figsize=(10, 5.6))
+    lines = [("safe_F2", C.C_COOL, "-", 2.8, "deposits (F2)"),
+             ("risky_F5", C.C_HOT, "-", 2.8, "equity & funds (F5)"),
+             ("inspen_F6", C.C_ACCENT, "--", 1.8, "ins. & pension (F6)")]
+    for col, color, ls, lw, txt in lines:
+        ax.plot(ea.index, ea[col], color=color, lw=lw, ls=ls,
+                alpha=0.85 if ls == "--" else 1.0)
+        s = ea[col].dropna()
+        ax.annotate(txt, (s.index[-1], s.iloc[-1]), xytext=(6, 0), textcoords="offset points",
+                    color=color, fontsize=8.5, fontweight="bold", va="center")
+    ax.set_xlim(ea.index.min(), ea.index.max() + 5)      # room for the end labels
     C.mark_periods(ax, year_axis=True, shade=True)
     ax.set_ylabel("share of household financial assets (%)")
     ax.set_xlabel("year")
-    ax.set_title(f"What euro-area households save in, over time ({ea_geo})\n"
-                 "deposits still dominate, but equity involvement has grown",
+    ax.set_title("What euro-area households save in, by RISK\n"
+                 "equity & funds (risky) have overtaken cash & deposits (non-risky)",
                  fontweight="bold")
-    ax.legend(frameon=False, fontsize=8.5, loc="center left")
-    C.caveat(fig, "Eurostat nasa_10_f_bs (stocks). 'Risky' = equity & investment-fund shares (F5); "
-                  "'non-risky' = currency & deposits (F2). The risky share rose over the last decade.")
+    C.caveat(fig, "Eurostat nasa_10_f_bs (stocks) -- the same household balance sheet as the liquidity "
+                  "ladder, cut by RISK not liquidity: 'risky' = equity & funds (F5), 'non-risky' = "
+                  "deposits (F2). The risky share rose ~8 pp over the decade, overtaking deposits ~2021.")
     C.savefig(fig, "saving_composition_evolution.png")
 
     # ---- figure 2: cross-country risky share (latest) ----

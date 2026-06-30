@@ -27,7 +27,8 @@ bash run.sh                          # or run any script on its own
 | # | Idea | Script | What it shows | Data |
 |---|---|---|---|---|
 | 1 | **Structural vs cyclical** | `structural_vs_cyclical.py` | HP trend/cycle split of the saving rate: did the *trend* step up (a new norm) or is the level a *cycle* that reverts? Cyclical drivers (rate/inflation/GPR) overlaid. | `../data` saving + drivers |
-| 4 | **Europe map** | `europe_map.py` | Choropleth of the household saving rate by country (Germany & the North dark, the South light), numbers annotated. geopandas, with a matplotlib-GeoJSON fallback. | `../data/country_saving_annual.csv` + GISCO |
+| 4 | **Europe map** | `europe_map.py` | Choropleth of the household saving rate by country (Germany & the North dark, the South light), haloed numbers + a ranked side-list. geopandas, with a matplotlib-GeoJSON fallback. 2024 = latest year with full coverage. | `../data/country_saving_annual.csv` + GISCO |
+| 4b | **Evolution across countries** | `saving_rate_evolution.py` | Saving rates over time for all 21 countries (grey) + highlighted North/South + the euro-area average. The North-South ranking is sticky; the post-2022 lift is broad. | Eurostat `tec00131` |
 | 5 | **Goods vs services** | `goods_vs_services.py` | Real consumption of goods vs services (2019=100) vs the saving rate — the goods→services rotation behind high saving. | Eurostat `nama_10_fcs` |
 | 6 | **What households save in** | `saving_composition_evolution.py` | Non-risky (F2 deposits) vs risky (F5 equity & funds) share of household wealth over time, + a cross-country snapshot. | Eurostat `nasa_10_f_bs` |
 | 2 | **Demographics & pensions** | `demographics_pensions.py` | Old-age dependency vs saving, and a funded-pension proxy (F6 share) vs saving — cross-country scatters. Do aging / good pensions move saving? | Eurostat `demo_pjanind` + `nasa_10_f_bs` |
@@ -35,7 +36,7 @@ bash run.sh                          # or run any script on its own
 
 ## Headline descriptive findings (live run)
 
-- **Structural, mostly.** The saving-rate *trend* stepped up ~1.7 pp (12.9%→14.6%)
+- **Structural, mostly.** With the 2020-21 COVID forced-saving quarters excluded from the filter, the saving-rate *trend* stepped up ~2.6 pp (12.5%→15.1%)
   and the current cycle is ~0 — the elevation has become a higher norm, not a
   transient bump (the 2020 spike was almost all cyclical).
 - **A structural North–South map.** Germany ~20%, France ~18% vs Italy ~11%,

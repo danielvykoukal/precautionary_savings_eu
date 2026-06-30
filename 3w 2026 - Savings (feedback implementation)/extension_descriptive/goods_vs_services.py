@@ -89,34 +89,48 @@ def main():
     latest = int(c.index.max())
     say(f"\nReal consumption index ({base}=100): in {latest}, services "
         f"{c.loc[latest,'services_idx']:.0f} vs goods {c.loc[latest,'goods_idx']:.0f}.")
-    say("Reading: services volumes collapsed in 2020, then rebounded back above their 2019 "
-        "level, while goods boomed in lockdown and then flattened. High saving coexists with a "
-        "strong services recovery — households rotated from goods to services and saved the "
-        "difference (nominal services spending is higher still, given services inflation).")
+    say("The argument, plainly: a high saving rate just means households spend a smaller share "
+        "of income. WITHIN what they spend, the mix rotated — in the 2020 lockdowns GOODS boomed "
+        "(durables, electronics) while SERVICES collapsed; after reopening SERVICES rebounded "
+        "strongly while goods demand faded. So 'elevated services spending' is the post-COVID "
+        "services recovery (plus high services inflation), not a consumer boom; the GOODS weakness "
+        "is part of why total consumption — and so the saving rate — stayed high. Split goods from "
+        "services and the apparent tension between high saving and strong services disappears.")
 
     saving = C.annual_mean("ea_saving_rate_quarterly.csv", "saving")
+    cc = c[c.index >= 2015]                          # focus on the recent rotation
+    sv = saving[saving.index >= 2015]
     fig, ax1 = plt.subplots(figsize=(10, 5.6))
     ax2 = ax1.twinx(); ax2.grid(False)
     ax1.axhline(100, color=C.C_GREY, ls=":", lw=1)
-    ax1.plot(c.index, c["services_idx"], color=C.C_MAIN, lw=2.6, marker="o", ms=3,
-             label=f"services (real, {base}=100)")
-    ax1.plot(c.index, c["goods_idx"], color=C.C_ORANGE, lw=2.4, marker="o", ms=3,
-             label=f"goods (real, {base}=100)")
-    ax1.set_ylabel(f"real consumption index ({base}=100)")
+    ax1.plot(cc.index, cc["services_idx"], color=C.C_MAIN, lw=2.8, marker="o", ms=4,
+             label="services consumption (real)")
+    ax1.plot(cc.index, cc["goods_idx"], color=C.C_ORANGE, lw=2.6, marker="o", ms=4,
+             label="goods consumption (real)")
+    ax1.set_ylabel(f"real consumption, index ({base}=100)")
     ax1.set_xlabel("year")
-    sav_line, = ax2.plot(saving.index, saving.values, color=C.C_HOT, lw=2.2, ls=(0, (1, 1)),
-                         label="household saving rate (right)")
+    if 2020 in cc.index:
+        ax1.annotate("lockdown:\ngoods up, services down", xy=(2020, cc.loc[2020, "goods_idx"]),
+                     xytext=(2015.3, 103.5), fontsize=8, color="#444",
+                     arrowprops=dict(arrowstyle="->", color="#999", lw=0.9))
+    if 2023 in cc.index:
+        ax1.annotate("reopening:\nservices rebound, goods flat",
+                     xy=(2023, cc.loc[2023, "services_idx"]), xytext=(2020.8, 90.5),
+                     fontsize=8, color="#444", arrowprops=dict(arrowstyle="->", color="#999", lw=0.9))
+    sv_line, = ax2.plot(sv.index, sv.values, color=C.C_HOT, lw=2.2, ls=(0, (1, 1)),
+                        label="household saving rate (right)")
     ax2.set_ylabel("household saving rate (%)", color=C.C_HOT)
     ax2.tick_params(axis="y", colors=C.C_HOT)
-    C.mark_periods(ax1, year_axis=True, shade=True)
-    ax1.set_title(f"High saving, strong services: a goods->services rotation\n"
-                  f"euro-area household consumption ({geo}, real volumes)", fontweight="bold")
+    C.mark_periods(ax1, year_axis=True, shade=True, labels=False)
+    ax1.set_title("Strong services + high saving are reconciled by weak goods\n"
+                  f"euro-area real household consumption, goods vs services ({geo})",
+                  fontweight="bold")
     h1, l1 = ax1.get_legend_handles_labels()
-    ax1.legend(h1 + [sav_line], l1 + ["household saving rate (right)"],
-               frameon=False, fontsize=8.5, loc="upper left")
-    C.caveat(fig, "Eurostat nama_10_fcs, real volumes. Services rebounded post-2021 while goods "
-                  "flattened; saving stayed high, funded by softer goods demand. Nominal services "
-                  "spending is higher still (services inflation).")
+    ax1.legend(h1 + [sv_line], l1 + ["household saving rate (right)"],
+               frameon=False, fontsize=8.5, loc="lower left")
+    C.caveat(fig, "Eurostat nama_10_fcs, real volumes (2019=100). Services rebounded after reopening "
+                  "while goods faded; that goods weakness is part of why overall consumption — and the "
+                  "saving rate — stayed high. Nominal services spending is higher still (services inflation).")
     C.savefig(fig, "goods_vs_services.png")
 
     c.join(saving.rename("saving")).to_csv(os.path.join(C.DATA, "goods_vs_services.csv"))

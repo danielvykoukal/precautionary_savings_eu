@@ -94,12 +94,16 @@ TIER_COLORS = {
 
 
 # ----------------------------------------------------------------------------
-# Regime shading / annotation — mimics the 2w report "house style"
-# (shaded COVID + energy/hiking bands, dashed invasion line, labels, footnote)
+# Regime shading / annotation -- the project "house style". Three regimes:
+#   ZLB / negative ECB rates : 2012-07 (deposit rate hits 0%) -> 27 Jul 2022 (1st hike)
+#   COVID forced saving      : 2020
+#   war + energy + ECB hikes : begins at the Feb-2022 invasion (so the dashed
+#                              invasion line == the LEFT EDGE of the orange band)
 # ----------------------------------------------------------------------------
-COVID_SPAN = ("2020-01-01", "2020-12-31")
-ENERGY_SPAN = ("2021-09-01", "2023-12-31")
+ZLB_SPAN = ("2012-07-01", "2022-07-27")
+COVID_SPAN = ("2020-02-01", "2020-12-31")
 INVASION = "2022-02-24"
+ENERGY_SPAN = (INVASION, "2023-12-31")
 
 
 def _xpos(ts, year_axis):
@@ -108,24 +112,31 @@ def _xpos(ts, year_axis):
     return (t.year + (t.dayofyear - 1) / 365.25) if year_axis else t
 
 
-def mark_periods(ax, year_axis=False, shade=True, invasion=True, labels=True):
-    """Shade COVID (forced saving) and the 2021-23 energy-shock / ECB-hiking
-    window, mark the Feb-2022 invasion, and label them -- the 2w report style.
-    Works on a datetime x-axis or an integer-year axis (year_axis=True). Call
-    AFTER plotting (it reads the current y-limits to place the labels). For
-    stacked-area charts pass shade=False (the stack hides the bands)."""
+def mark_periods(ax, year_axis=False, shade=True, invasion=True, labels=True, zlb=True):
+    """Shade the three regimes and mark the Feb-2022 invasion. The invasion dashed
+    line coincides with the left edge of the war/energy band by construction, so
+    the line and the orange shading line up. Works on a datetime or integer-year
+    (year_axis=True) axis; call AFTER plotting (it reads the y-limits for labels).
+    For stacked-area charts pass shade=False (the stack hides the fills); the
+    invasion line + labels still draw."""
     if shade:
+        if zlb:
+            ax.axvspan(_xpos(ZLB_SPAN[0], year_axis), _xpos(ZLB_SPAN[1], year_axis),
+                       color="#6c5ce7", alpha=0.06, zorder=0)
         ax.axvspan(_xpos(COVID_SPAN[0], year_axis), _xpos(COVID_SPAN[1], year_axis),
-                   color="#5d6d7e", alpha=0.10, zorder=0)
+                   color="#5d6d7e", alpha=0.14, zorder=0)
         ax.axvspan(_xpos(ENERGY_SPAN[0], year_axis), _xpos(ENERGY_SPAN[1], year_axis),
-                   color=C_ORANGE, alpha=0.08, zorder=0)
+                   color=C_ORANGE, alpha=0.10, zorder=0)
     if invasion:
-        ax.axvline(_xpos(INVASION, year_axis), color="grey", ls="--", lw=1, zorder=3)
+        ax.axvline(_xpos(INVASION, year_axis), color="#7b241c", ls="--", lw=1.1, zorder=3)
     if labels:
         top = ax.get_ylim()[1]
+        if zlb:
+            ax.text(_xpos("2016-09-01", year_axis), top, "ZLB / negative ECB rates",
+                    ha="center", va="top", fontsize=7.5, color="#5b4bbf")
         ax.text(_xpos("2020-07-01", year_axis), top, "COVID\n(forced saving)",
                 ha="center", va="top", fontsize=7.5, color="#5d6d7e")
-        ax.text(_xpos("2022-11-01", year_axis), top, "war + energy\n+ ECB hikes",
+        ax.text(_xpos("2022-11-15", year_axis), top, "war + energy\n+ ECB hikes",
                 ha="center", va="top", fontsize=7.5, color="#a04000")
     return ax
 

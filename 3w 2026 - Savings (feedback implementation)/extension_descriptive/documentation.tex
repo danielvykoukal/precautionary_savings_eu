@@ -57,8 +57,9 @@ sets the scene \emph{descriptively}, as the supervisors asked. Four pictures: (1
 is the elevated rate a new \emph{structural} norm or a \emph{cyclical} bump? (4) a
 map of how saving rates vary across Europe; (5) how spending rotated from goods to
 services; and (6) what households actually hold, and how the risk mix has evolved.
-Headlines: the saving-rate \emph{trend} has stepped up about $1.7$ pp
-($12.9\%\!\to\!14.6\%$) with the cycle now near zero, so the persistence is mostly
+Headlines: the saving-rate \emph{trend} has stepped up about $2.6$ pp
+($12.5\%\!\to\!15.1\%$, with the COVID forced-saving quarters excluded from the
+filter) and the cycle is now near zero, so the persistence is mostly
 structural; the North--South map (Germany ${\sim}20\%$ vs the South ${\sim}11$--$13\%$,
 Greece dissaving) is long-standing, not new; real services consumption rebounded
 above its 2019 level while goods flattened, reconciling high saving with strong
@@ -89,18 +90,21 @@ hypothesis work.
 % ============================================================================
 Is the elevated rate a new \emph{norm} or a \emph{cycle} that should revert? A
 Hodrick--Prescott filter ($\lambda=1600$) splits the saving rate into a slow trend
-(structural) and a cycle (Figure~\ref{fig:structural_vs_cyclical}). The structural
-trend has \textbf{stepped up about $1.7$ pp}, from $12.9\%$ (2012--19) to $14.6\%$
-today, while the latest cycle is essentially \emph{zero} --- the rate sits at its
-trend. The 2020 lockdown spike was almost entirely cyclical and has unwound. So
-the persistence is now \textbf{mostly structural}: a higher norm, consistent with
-saving more for old age as pension promises weaken, rather than a transient bump.
-(The 2020 spike distorts the HP trend around 2020; read the pre-2020 vs latest
-step, not the 2020 bend.)
+(structural) and a cycle (Figure~\ref{fig:structural_vs_cyclical}). Because the
+2020--21 COVID spike was \emph{forced} saving --- households simply could not spend,
+not a behavioural change --- those quarters are \textbf{excluded from the filter}
+(interpolated) so they do not distort the trend; the cycle is then the real deviation
+from that de-COVID trend, so the spike shows up (correctly) as a large positive
+\emph{cycle}. On that basis the structural trend \textbf{steps up about $2.6$ pp},
+from $12.5\%$ (2012--19) to $15.1\%$ today, while the latest cycle is essentially
+\emph{zero}. So the persistence is now \textbf{mostly structural}: a higher norm,
+consistent with saving more for old age as pension promises weaken, rather than a
+transient bump.
 
-\fig{0.92}{structural_vs_cyclical}{The euro-area saving rate split into a
-structural trend and a cyclical component (HP, $\lambda=1600$); the lower panel
-shows the cycle against cyclical drivers (ECB rate, inflation, GPR), $z$-scored.}
+\fig{0.92}{structural_vs_cyclical}{The euro-area saving rate split into a structural
+trend (HP, $\lambda=1600$, with the 2020--21 COVID quarters excluded from the filter)
+and a cyclical component; the lower panel shows the cycle against cyclical drivers
+(ECB rate, inflation, GPR), $z$-scored.}
 
 % ============================================================================
 \section{The European map}\label{sec:map}
@@ -112,41 +116,53 @@ and \textbf{Greece dissaving}. The North--South gap is \emph{structural and
 long-standing} --- it predates the energy shock --- so a raw "who saves most" map
 mostly reflects habits, not the recent crisis.
 
-\fig{0.78}{europe_saving_map}{Gross household saving rate by country (latest year);
-Eurostat \dataset{tec00131} with GISCO boundaries. North dark, South light.}
+\fig{0.78}{europe_saving_map}{Gross household saving rate by country, 2024 --- the
+latest year with full coverage (2025 is still incomplete); Eurostat \dataset{tec00131}
+with GISCO boundaries. North dark, South light; a ranked list gives every value.}
+
+The time dimension confirms the pattern (Figure~\ref{fig:saving_rate_evolution}): the
+country ranking is sticky --- the North has saved roughly $8$--$12$ pp more than the
+South for two decades --- and the post-2022 lift raised most countries together rather
+than re-ordering them.
+
+\fig{0.92}{saving_rate_evolution}{Household saving rates over time: all 21 countries
+(grey), with highlighted North (cool) and South (warm) economies and the euro-area
+average (black dotted); Eurostat \dataset{tec00131}.}
 
 % ============================================================================
 \section{Spending: goods vs services}\label{sec:goods}
 % ============================================================================
-If saving is so high, how has services spending stayed so strong? Real consumption
-volumes (2019$=$100, Figure~\ref{fig:goods_vs_services}) resolve the puzzle:
-\textbf{services collapsed in 2020 then rebounded to ${\sim}107$}, while goods
-boomed in lockdown and then flattened (${\sim}103$). Households kept consuming
-services (reopening, and services inflation lifts the \emph{nominal} figure
-further) and saved by \textbf{pulling back on goods}. High saving and strong
-services are two sides of a \textbf{goods$\rightarrow$services rotation}, not a
-contradiction.
+If saving is so high, how has services spending stayed so strong? It is not a paradox
+once goods and services are split (Figure~\ref{fig:goods_vs_services}). A high saving
+rate just means households spend a smaller \emph{share} of income; \emph{within} that
+spending the mix rotated. In the 2020 lockdowns \textbf{goods} boomed (durables,
+electronics) while \textbf{services} collapsed; after reopening \textbf{services
+rebounded} strongly (to ${\sim}107$, 2019$=$100) while \textbf{goods demand faded}
+(${\sim}103$). So "elevated services spending" is the post-COVID services recovery
+(plus high services inflation), not a consumer boom --- and the goods weakness is part
+of why \emph{overall} consumption, and hence the saving rate, stayed high. Strong
+services and high saving are reconciled by \textbf{weak goods}, not in tension.
 
 \fig{0.86}{goods_vs_services}{Real household consumption of goods vs services
-(2019$=$100) against the saving rate; Eurostat \dataset{nama\_10\_fcs}.}
+(2019$=$100, recent years) against the saving rate; Eurostat \dataset{nama\_10\_fcs}.}
 
 % ============================================================================
 \section{What households save in, and how it evolved}\label{sec:compose}
 % ============================================================================
-Disaggregating the household balance sheet by \emph{risk}
-(Figure~\ref{fig:saving_composition_evolution}): the \textbf{risky share (equity \&
-investment-fund shares, F5) rose about $+8$ pp over the decade, $29\%\to37\%$},
-while \textbf{non-risky deposits (F2) held near $31\%$} and insurance/pensions also
-rose. Equity is now the \emph{largest single instrument}, though deposits and
-pensions (non-risky) still dominate combined. So the non-risky base is still large,
-but \textbf{equity involvement has clearly grown} --- more euro-area households now
-carry market exposure. The cross-country snapshot
-(Figure~\ref{fig:risky_share_by_country}) shows that risky share is higher in the
-core/North and lower in the South.
+This is the \emph{same} household balance sheet as the liquidity ladder, cut by
+\emph{risk} rather than liquidity (Figure~\ref{fig:saving_composition_evolution}). The
+\textbf{risky share (equity \& investment-fund shares, F5) rose about $+8$ pp over the
+decade, $29\%\to37\%$}, while \textbf{non-risky deposits (F2) held near $31\%$}. Equity
+\& funds \textbf{overtook deposits around 2021} and are now the largest single
+instrument, though deposits and insurance/pension claims (non-risky) still dominate
+combined. So the non-risky base is still large, but \textbf{equity involvement has
+clearly grown} --- more euro-area households now carry market exposure. The
+cross-country snapshot (Figure~\ref{fig:risky_share_by_country}) shows the risky share
+is higher in the core/North and lower in the South.
 
-\fig{0.86}{saving_composition_evolution}{Non-risky (deposits, F2) vs risky (equity
-\& funds, F5) share of euro-area household financial assets over time; Eurostat
-\dataset{nasa\_10\_f\_bs}.}
+\fig{0.86}{saving_composition_evolution}{Household financial assets by RISK over time:
+non-risky deposits (F2), risky equity \& funds (F5), and insurance \& pensions;
+Eurostat \dataset{nasa\_10\_f\_bs}. Risky overtook non-risky around 2021.}
 
 \fig{0.74}{risky_share_by_country}{Risky (equity \& investment-fund) share of
 household financial assets, by country (latest).}
