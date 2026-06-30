@@ -79,12 +79,15 @@ TOPLEVEL = [f"F{i}" for i in range(1, 9)]
 # rate is built from (ESA-2010 instrument codes). "Other" sweeps up monetary
 # gold/SDRs (F1), derivatives (F7) and other accounts receivable (F8).
 ASSET_TYPES = [
-    ("F2", "deposits & cash",        C.C_COOL),
-    ("F3", "debt securities",        C.C_GREEN),
-    ("F5", "equity & fund shares",   C.C_ORANGE),
-    ("F6", "insurance & pensions",   C.C_ACCENT),
+    ("F2", "Currency & deposits (F2)",              C.C_COOL),
+    ("F3", "Bonds / debt securities (F3)",          C.C_GREEN),
+    ("F5", "Listed shares & investment funds (F5)", C.C_ORANGE),
+    ("F6", "Insurance & pension entitlements (F6)", C.C_ACCENT),
 ]
 ASSET_OTHER = ["F1", "F7", "F8"]
+OTHER_FIN_LABEL = "Other financial (gold, derivatives, other)"
+HOUSING_LABEL = "Housing & non-financial investment"
+BORROW_LABEL = "− Borrowing (loans & other liabilities)"
 
 
 def say(line=""):
@@ -246,26 +249,30 @@ def main():
         say(f"  {y}: total {bn(r['F_LIAB']):>6.1f}   of which loans/mortgages (F4) "
             f"{bn(r['F4_loans']):>6.1f}")
 
-    # ---- the build-up to the saving rate, % of GDI, recent period ----
-    recent = df[df.index >= df.index.max() - 2]   # last 3 available years
-    lo, hi = int(recent.index.min()), int(recent.index.max())
-    g = lambda c: 100 * recent[c].sum() / recent["denom"].sum()   # % of denom, pooled
-    bridge = {
-        "Deposits\n& cash (F2)": g("F2"),
-        "Debt\nsecurities (F3)": g("F3"),
-        "Equity &\nfunds (F5)": g("F5"),
-        "Insurance\n& pensions (F6)": g("F6"),
-        "Other\nfinancial": g("other_fin"),
-        "+ Housing &\nnon-fin. inv.": g("housing"),
-        "− Borrowing\n(liabilities)": -g("F_LIAB"),
-        "+ Transfers\n& residual": g("transfers_disc"),
-        "= Saving rate": g("saving_built"),
-    }
-    say(f"\nSaving rate built from its components, % of GDI, pooled {lo}-{hi}:")
-    for k, v in bridge.items():
-        say(f"  {k.replace(chr(10),' '):<34}{v:>+7.1f}")
+    # ---- the build-up to the saving rate, % of GDI, BY YEAR (2023/24/25) ----
+    def bridge_for(year):
+        r = df.loc[year]
+        gg = lambda c: 100 * r[c] / r["denom"]
+        return {
+            "Currency &\ndeposits (F2)": gg("F2"),
+            "Bonds /\nsecurities (F3)": gg("F3"),
+            "Shares &\nfunds (F5)": gg("F5"),
+            "Insurance &\npensions (F6)": gg("F6"),
+            "Other\nfinancial": gg("other_fin"),
+            "+ Housing &\nnon-fin. inv.": gg("housing"),
+            "− Borrowing": -gg("F_LIAB"),
+            "+ Transfers\n& residual": gg("transfers_disc"),
+            "= Saving\nrate": gg("saving_built"),
+        }
+    years = [y for y in (2023, 2024, 2025) if y in df.index]
+    bridges = {y: bridge_for(y) for y in years}
+    say("\nSaving rate built from its components, % of GDI, by year:")
+    for y in years:
+        say(f"  --- {y} ---")
+        for k, v in bridges[y].items():
+            say(f"    {k.replace(chr(10),' '):<28}{v:>+7.1f}")
 
-    plot_waterfall(bridge, lo, hi, geo_nf)
+    plot_waterfall_years(bridges, geo_nf)
     plot_pieces_over_time(df, geo_nf)
     plot_decomposition_vs_saving(df, geo_nf)
 
@@ -411,20 +418,14 @@ def plot_validation(cmp):
     C.savefig(fig, "M4_savings_reconciliation_validation.png")
 
 
-def plot_waterfall(bridge, lo, hi, geo):
-    """Build-up waterfall: stack the asset-type acquisitions + housing − borrowing
-    + transfers and show they sum to the saving rate (% of GDI). This is the saving
-    rate constructed from its components, not from income − consumption."""
+def _waterfall_panel(ax, bridge):
+    """Draw one build-up waterfall on ax; return (lo, hi) of its drawn range."""
     labels = list(bridge.keys())
     vals = list(bridge.values())
-    fig, ax = plt.subplots(figsize=(11.5, 6))
     ax.axhline(0, color="black", lw=0.9)
-
-    running = 0.0
-    tops = []
+    running, tops = 0.0, []
     for i, (lab, v) in enumerate(zip(labels, vals)):
-        is_total = lab.startswith("= ")
-        if is_total:
+        if lab.startswith("= "):
             ax.bar(i, v, bottom=0, width=0.68, color=C.C_MAIN, alpha=0.95,
                    edgecolor="white", zorder=2)
             top = v
@@ -432,31 +433,48 @@ def plot_waterfall(bridge, lo, hi, geo):
             color = C.C_GREEN if v >= 0 else C.C_HOT
             ax.bar(i, v, bottom=running, width=0.68, color=color, alpha=0.9,
                    edgecolor="white", zorder=2)
-            if i > 0:   # connector from the previous running level
+            if i > 0:
                 ax.plot([i - 0.34, i - 0.66], [running, running], color="grey",
                         lw=0.8, ls="--", zorder=1)
             top = running + v
             running = top
         tops.append(top)
-        label_y = top + 0.18 if v >= 0 else top - 0.18
-        ax.text(i, label_y, f"{v:+.1f}", ha="center",
-                va="bottom" if v >= 0 else "top", fontsize=8.5, fontweight="bold")
-
-    hi_y = max(tops + vals + [running])
-    lo_y = min(tops + [0.0])
-    ax.set_ylim(lo_y - 1.2, hi_y + 1.8)
+        ax.text(i, top + (0.16 if v >= 0 else -0.16), f"{v:+.1f}", ha="center",
+                va="bottom" if v >= 0 else "top", fontsize=7.5, fontweight="bold")
     ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels(labels, fontsize=8.2)
-    ax.set_ylabel("% of gross disposable income")
-    ax.set_title("The saving rate, built from its components\n"
-                 f"euro-area households, pooled {lo}-{hi} ({geo}): net acquisition of "
-                 "each asset type + housing − borrowing = the saving rate",
-                 fontweight="bold")
+    ax.set_xticklabels([l.replace("\n", " ") for l in labels], fontsize=7.0,
+                       rotation=40, ha="right")
+    return min(tops + [0.0]), max(tops + vals)
+
+
+def plot_waterfall_years(bridges, geo):
+    """One build-up waterfall PER YEAR (2023/24/25), shared y-axis, so the change in
+    the saving rate's composition is comparable across years. The asset types
+    (currency & deposits F2, bonds F3, listed shares & funds F5, insurance & pensions
+    F6) + housing − borrowing build up to that year's saving rate."""
+    years = list(bridges.keys())
+    fig, axes = plt.subplots(1, len(years), figsize=(5.0 * len(years), 6.2),
+                             sharey=True)
+    if len(years) == 1:
+        axes = [axes]
+    los, his = [], []
+    for ax, y in zip(axes, years):
+        lo, hi = _waterfall_panel(ax, bridges[y])
+        los.append(lo); his.append(hi)
+        sr = bridges[y]["= Saving\nrate"]
+        ax.set_title(f"{y}  —  saving rate {sr:.1f}%", fontweight="bold", fontsize=11)
+    axes[0].set_ylabel("% of gross disposable income")
+    for ax in axes:
+        ax.set_ylim(min(los) - 1.3, max(his) + 1.6)
     from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color=C.C_MAIN, label="= saving rate (the sum)"),
-                       Patch(color=C.C_GREEN, label="adds to saving (+)"),
-                       Patch(color=C.C_HOT, label="borrowing — a source of funds (−)")],
-              loc="upper left", frameon=False, fontsize=9)
+    axes[-1].legend(handles=[Patch(color=C.C_MAIN, label="= saving rate (the sum)"),
+                             Patch(color=C.C_GREEN, label="adds to saving (+)"),
+                             Patch(color=C.C_HOT, label="borrowing — source of funds (−)")],
+                    loc="upper right", frameon=False, fontsize=8)
+    fig.suptitle("The saving rate, built from its components — by year\n"
+                 f"euro-area households ({geo}): each asset type + housing − borrowing "
+                 "= the saving rate", fontweight="bold", fontsize=12.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     C.savefig(fig, "M_savings_reconciliation_waterfall.png")
 
 
@@ -483,24 +501,21 @@ def plot_decomposition_vs_saving(df, geo):
         bottom = bottom + v
     other_fin = (100 * d["other_fin"] / den).values
     ax.bar(yrs, other_fin, bottom=bottom, width=0.8, color=C.C_MAIN, alpha=0.55,
-           label="other financial (gold, derivatives, other)", edgecolor="white",
-           linewidth=0.3, zorder=2)
+           label=OTHER_FIN_LABEL, edgecolor="white", linewidth=0.3, zorder=2)
     bottom = bottom + other_fin
     house = (100 * d["housing"] / den).values
     ax.bar(yrs, house, bottom=bottom, width=0.8, color=C.C_GREY,
-           label="housing & non-financial investment", edgecolor="white",
-           linewidth=0.3, zorder=2)
+           label=HOUSING_LABEL, edgecolor="white", linewidth=0.3, zorder=2)
     bottom = bottom + house
     tr = (100 * d["transfers_disc"] / den).values
     ax.bar(yrs, tr, bottom=bottom, width=0.8, color="#bdc3c7",
-           label="capital transfers + statistical residual", edgecolor="white",
+           label="Capital transfers + statistical residual", edgecolor="white",
            linewidth=0.3, alpha=0.9, zorder=2)
 
     # borrowing below zero (a source of funds)
     borrow = (-100 * d["F_LIAB"] / den).values
     ax.bar(yrs, borrow, width=0.8, color=C.C_HOT,
-           label="− borrowing (net incurrence of liabilities)", edgecolor="white",
-           linewidth=0.3, zorder=2)
+           label=BORROW_LABEL, edgecolor="white", linewidth=0.3, zorder=2)
 
     # the saving rate = algebraic sum of the stack; overlay the REPORTED series to
     # show the bottom-up bars net to the published rate

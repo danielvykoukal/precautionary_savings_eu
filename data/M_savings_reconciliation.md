@@ -63,14 +63,35 @@ Household BORROWING — net incurrence of liabilities (EUR bn/yr):
   2024: total  103.6   of which loans/mortgages (F4)   94.6
   2025: total  221.6   of which loans/mortgages (F4)  204.3
 
-Saving rate built from its components, % of GDI, pooled 2023-2025:
-  Deposits & cash (F2)                 +2.8
-  Debt securities (F3)                 +1.4
-  Equity & funds (F5)                  +1.9
-  Insurance & pensions (F6)            +1.5
-  Other financial                      +0.5
-  + Housing & non-fin. inv.            +9.2
-  − Borrowing (liabilities)            -1.4
-  + Transfers & residual               -1.3
-  = Saving rate                       +14.6
+Saving rate built from its components, % of GDI, by year:
+  --- 2023 ---
+    Currency & deposits (F2)       +1.1
+    Bonds / securities (F3)        +3.4
+    Shares & funds (F5)            +0.5
+    Insurance & pensions (F6)      +0.7
+    Other financial                +0.9
+    + Housing & non-fin. inv.      +9.9
+    − Borrowing                    -0.9
+    + Transfers & residual         -1.6
+    = Saving rate                 +14.0
+  --- 2024 ---
+    Currency & deposits (F2)       +3.6
+    Bonds / securities (F3)        +0.7
+    Shares & funds (F5)            +2.6
+    Insurance & pensions (F6)      +1.6
+    Other financial                +0.1
+    + Housing & non-fin. inv.      +8.8
+    − Borrowing                    -1.1
+    + Transfers & residual         -1.3
+    = Saving rate                 +15.0
+  --- 2025 ---
+    Currency & deposits (F2)       +3.6
+    Bonds / securities (F3)        +0.3
+    Shares & funds (F5)            +2.6
+    Insurance & pensions (F6)      +2.2
+    Other financial                +0.5
+    + Housing & non-fin. inv.      +8.8
+    − Borrowing                    -2.3
+    + Transfers & residual         -1.0
+    = Saving rate                 +14.9
 ```

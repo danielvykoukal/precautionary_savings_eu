@@ -21,15 +21,32 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import glob
 import _common as cm
 
+# --- run from the flattened repo layout: point at the top-level data/ & figures/
+cm.ROOT = os.path.dirname(os.path.dirname(cm.HERE))   # code/follow_money -> repo root
+cm.ROOT_DATA = os.path.join(cm.ROOT, "data")
+cm.DATA = os.path.join(cm.ROOT, "data")
+cm.FIG = os.path.join(cm.ROOT, "figures")
+_orig_root_csv = cm.root_csv
+def _tagged_root_csv(name, required=True):
+    if not os.path.exists(os.path.join(cm.ROOT_DATA, name)):
+        hits = glob.glob(os.path.join(cm.ROOT_DATA, "?_" + name))
+        if hits:
+            return pd.read_csv(hits[0])
+    return _orig_root_csv(name, required)
+cm.root_csv = _tagged_root_csv
+
+# Asset types match the M2 decomposition (ESA top-level instrument codes), so this
+# is the time-series companion to M2_savings_reconciliation_decomposition.
 # (label, [ESA instrument codes], colour)
 ASSETS = [
-    ("currency & overnight deposits", ["F21", "F22"], cm.C_BLUE),
-    ("time / savings deposits",       ["F29"],        cm.C_ORANGE),
-    ("bonds (debt securities)",       ["F3"],         cm.C_RED),
-    ("equity & investment funds",     ["F5"],         "#117a65"),
-    ("insurance & pensions",          ["F6"],         cm.C_PURPLE),
+    ("Currency & deposits (F2)",              ["F2"],              cm.C_BLUE),
+    ("Bonds / debt securities (F3)",          ["F3"],              "#117a65"),
+    ("Listed shares & investment funds (F5)", ["F5"],              cm.C_ORANGE),
+    ("Insurance & pension entitlements (F6)", ["F6"],              cm.C_PURPLE),
+    ("Other financial (F1/F7/F8)",            ["F1", "F7", "F8"],  cm.C_GREY),
 ]
 
 
@@ -88,15 +105,16 @@ def main():
                loc="upper left", frameon=True, framealpha=0.9, edgecolor="none",
                fontsize=8.5, ncol=2)
     ax1.set_title(f"Where euro-area households put their saving, by asset type\n"
-                  f"net flows by instrument vs the saving rate ({geo})",
+                  f"net flows by ESA instrument vs the saving rate ({geo}) "
+                  f"— companion to the M2 decomposition",
                   fontweight="bold")
     fig.tight_layout()
-    cm.savefig(fig, "net_flows_by_asset.png")
+    cm.savefig(fig, "F3_net_flows_by_asset.png")
 
     out = pd.DataFrame({lab: s for lab, (s, _) in series.items()})
     out.index.name = "year"
-    out.join(saving).to_csv(os.path.join(cm.DATA, "net_flows_by_asset.csv"))
-    print("\nWrote extension_follow_money/data/net_flows_by_asset.csv")
+    out.join(saving).to_csv(os.path.join(cm.DATA, "F3_net_flows_by_asset.csv"))
+    print("\nWrote data/F3_net_flows_by_asset.csv")
 
 
 if __name__ == "__main__":

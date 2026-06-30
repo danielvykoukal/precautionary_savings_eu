@@ -36,11 +36,19 @@ matplotlib.use("Agg")  # no display needed; we save PNGs
 import matplotlib.pyplot as plt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "data")
-FIG = os.path.join(HERE, "figures")
+ROOT = os.path.dirname(os.path.dirname(HERE))   # code/core -> repo root (flattened layout)
+DATA = os.path.join(ROOT, "data")
+FIG = os.path.join(ROOT, "figures")
 os.makedirs(FIG, exist_ok=True)
 
 START = "1999-01-01"  # left edge for the time-series panels
+
+# Period spans for consistent shading across the whole project
+# (mirrors code/feedback/_common.py + the descriptive ZLB_SPAN).
+COVID_SPAN = ("2020-01-01", "2020-12-31")          # forced-saving lockdowns
+ENERGY_SPAN = ("2022-02-24", "2023-12-31")         # war + energy + ECB hiking
+ZLB_SPAN = ("2012-07-01", "2022-07-27")            # ECB deposit rate at/below zero
+INVASION = "2022-02-24"
 
 # Editorial grouping for colour-coding (refine before publishing).
 # "High exposure" = large Russian-gas reliance pre-2022 and/or frontline CEE.
@@ -57,11 +65,16 @@ plt.rcParams.update({
 
 
 def _path(name):
-    return os.path.join(DATA, name)
+    """Resolve a data file, tolerating the idea-letter tag prefix (e.g. A_<name>)."""
+    p = os.path.join(DATA, name)
+    if os.path.exists(p):
+        return p
+    hits = glob.glob(os.path.join(DATA, "?_" + name))
+    return hits[0] if hits else p
 
 
 def _read(name):
-    """Read a CSV from ./data, or None if it does not exist."""
+    """Read a CSV from data/, or None if it does not exist."""
     p = _path(name)
     return pd.read_csv(p) if os.path.exists(p) else None
 
@@ -97,30 +110,57 @@ def chart_A(ea, uncertainty, unc_label, rate=None, inflation=None):
     axT = fig.add_subplot(gs[0])
     axB = fig.add_subplot(gs[1], sharex=axT)
 
+    def _ts(s):
+        return pd.Timestamp(s)
+
+    def bands(ax, labels=False):
+        """Consistent period shading used across the project: ZLB era, COVID,
+        war+energy, and the Feb-2022 invasion line. Drawn behind the data."""
+        ax.axvspan(_ts(ZLB_SPAN[0]), _ts(ZLB_SPAN[1]), color="#6c5ce7", alpha=0.07,
+                   zorder=0, lw=0)
+        ax.axvspan(_ts(COVID_SPAN[0]), _ts(COVID_SPAN[1]), color="#5d6d7e",
+                   alpha=0.16, zorder=0, lw=0)
+        ax.axvspan(_ts(ENERGY_SPAN[0]), _ts(ENERGY_SPAN[1]), color="#e67e22",
+                   alpha=0.12, zorder=0, lw=0)
+        ax.axvline(_ts(INVASION), color="grey", ls="--", lw=1, zorder=3)
+        if labels:
+            top = ax.get_ylim()[1]
+            ax.text(_ts("2017-06-01"), top, "ZLB / negative-rate era",
+                    ha="center", va="top", fontsize=7.5, color="#5b4bb0")
+            ax.text(_ts("2020-07-01"), top, "COVID\n(forced saving)",
+                    ha="center", va="top", fontsize=7.5, color="#5d6d7e")
+            ax.text(_ts("2023-01-01"), top, "war + energy\n+ ECB hikes",
+                    ha="center", va="top", fontsize=7.5, color="#a04000")
+
     # ---------------- TOP: level vs norm ----------------
-    axT.axvspan(pd.Timestamp("2020-01-01"), pd.Timestamp("2020-12-31"),
-                color="#5d6d7e", alpha=0.10, zorder=0)
     axT.plot(ea["date"], ea["value"], color="#1f4e79", lw=2.6, zorder=5)
-    axT.axhline(base, color="#7f8c8d", ls=":", lw=1.4, zorder=3)
-    mask = ea["date"] >= pd.Timestamp("2022-01-01")
+    # post-2022 excess above the norm (the headline story)
+    mask = ea["date"] >= _ts("2022-01-01")
     axT.fill_between(ea["date"], base, ea["value"],
                      where=mask & (ea["value"] > base),
                      color="#1f4e79", alpha=0.15, zorder=2)
-    axT.axvline(pd.Timestamp("2022-02-24"), color="grey", ls="--", lw=1, zorder=3)
+    # pre-pandemic norm — a clearly visible reference line + boxed right-edge label
+    axT.axhline(base, color="#117a65", ls=(0, (6, 3)), lw=1.8, zorder=4)
+    axT.annotate(f"pre-pandemic norm ’12–’19: {base:.1f}%",
+                 xy=(ea["date"].iloc[-1], base), xytext=(-6, 6),
+                 textcoords="offset points", ha="right", va="bottom",
+                 fontsize=9, color="#0e6655", fontweight="bold",
+                 bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="#117a65", alpha=0.9))
 
-    # direct label at the end of the line (replaces a legend)
+    # set y-limits BEFORE drawing the bands/labels so the norm line has headroom
+    lo = min(float(ea["value"].min()), base) - 1.5
+    hi = float(ea["value"].max()) + 2.0
+    axT.set_ylim(lo, hi)
+    bands(axT, labels=True)
+
     axT.annotate("household\nsaving rate", xy=(ea["date"].iloc[-1], ea["value"].iloc[-1]),
                  xytext=(6, 0), textcoords="offset points",
                  color="#1f4e79", fontsize=9, va="center", ha="left")
-    axT.text(ea["date"].min(), base, f" pre-pandemic norm ’12–’19: {base:.1f}%",
-             va="bottom", ha="left", fontsize=8.5, color="#7f8c8d")
-    axT.text(pd.Timestamp("2020-07-01"), axT.get_ylim()[1], "COVID\n(forced saving)",
-             ha="center", va="top", fontsize=8, color="#5d6d7e")
     if len(post):
         axT.annotate(f"≈ {excess:.0f} pp above norm\nsince 2022",
-                     xy=(pd.Timestamp("2024-01-01"), float(post.mean())),
-                     xytext=(pd.Timestamp("2014-06-01"),
-                             base + 0.65 * (float(post.mean()) - base)),
+                     xy=(_ts("2024-01-01"), float(post.mean())),
+                     xytext=(_ts("2015-06-01"),
+                             base + 0.62 * (float(post.mean()) - base)),
                      fontsize=9, color="#1f4e79", ha="left",
                      arrowprops=dict(arrowstyle="->", color="#1f4e79", lw=1))
 
@@ -142,9 +182,9 @@ def chart_A(ea, uncertainty, unc_label, rate=None, inflation=None):
         drivers.append(("#e67e22", "HICP inflation", _to_quarterly(inflation)))
     for color, lab, d in drivers:
         d = d[d["date"] >= START]
-        axB.plot(d["date"], z(d["v"]), color=color, lw=1.5, alpha=0.9, label=lab)
+        axB.plot(d["date"], z(d["v"]), color=color, lw=1.5, alpha=0.9, label=lab, zorder=5)
     axB.axhline(0, color="black", lw=0.6, alpha=0.5)
-    axB.axvline(pd.Timestamp("2022-02-24"), color="grey", ls="--", lw=1)
+    bands(axB, labels=False)   # same ZLB / COVID / energy shading as the top panel
     axB.set_ylabel("drivers\n(z-score)")
     axB.legend(loc="upper left", ncol=3, fontsize=8, frameon=False)
     axB.text(0.0, 1.02, "…and the candidate drivers all rose together (standardised)",
@@ -364,78 +404,12 @@ def main():
     except Exception as e:
         print(f"  FAILED: {e}")
 
-    print("\n[B] Energy shock vs rise in saving (scatter) ...")
-    try:
-        scatter = _read("scatter_energy_vs_saving.csv")
-        if scatter is None:
-            print("  SKIPPED: scatter_energy_vs_saving.csv missing.")
-        else:
-            chart_B(scatter.set_index(scatter.columns[0]))
-    except Exception as e:
-        print(f"  FAILED: {e}")
+    # NOTE: the cross-country scatter (B), country bar (B2) and the distributional
+    # charts (C/C2/D) were archived in the 2026 review — their figures live under
+    # archive/ and the chart_* functions below are kept for if they are reopened.
+    # This step now regenerates only the headline core chart A.
 
-    print("\n[B2] Saving rate by country (bar) ...")
-    try:
-        piv = _load_pivot("country_saving_annual.csv")
-        if piv is None:
-            print("  SKIPPED: country_saving_annual.csv missing.")
-        else:
-            chart_B_bar(piv)
-    except Exception as e:
-        print(f"  FAILED: {e}")
-
-    print("\n[C] Saving rate by income quintile (latest snapshot) ...")
-    try:
-        out = _read("saving_rate_by_quintile.csv")
-        if out is None:
-            print("  SKIPPED: saving_rate_by_quintile.csv missing.")
-        else:
-            chart_C_quintile(out)
-    except Exception as e:
-        print(f"  FAILED: {e}")
-
-    print("\n[C2] Unemployment expectations by income group ...")
-    try:
-        ces = _read("ces_unemp_expectations.csv")
-        if ces is None:
-            print("  SKIPPED: ces_unemp_expectations.csv missing.")
-        else:
-            chart_C_expectations(ces)
-    except Exception as e:
-        print(f"  FAILED: {e}")
-
-    print("\n[D] Saving distribution across ICW snapshots ...")
-    try:
-        panel = _read("icw_quintile_panel.csv")
-        if panel is None:
-            print("  SKIPPED: icw_quintile_panel.csv missing.")
-        else:
-            chart_D_icw_slope(panel)
-    except Exception as e:
-        print(f"  FAILED: {e}")
-
-    print("\n[E] OECD annual saving by quintile (per country) ...")
-    oecd_files = sorted(glob.glob(_path("oecd_quintile_panel_*.csv")))
-    if not oecd_files:
-        print("  SKIPPED: no oecd_quintile_panel_*.csv (OECD pull returned nothing).")
-    for f in oecd_files:
-        country = os.path.basename(f).replace("oecd_quintile_panel_", "").replace(".csv", "")
-        try:
-            chart_E_oecd(pd.read_csv(f), country)
-        except Exception as e:
-            print(f"  {country} FAILED: {e}")
-
-    print("\n[F] ECB CES saving by income group since 2020 ...")
-    try:
-        out = _read("ces_saving_by_income.csv")
-        if out is None:
-            print("  SKIPPED: ces_saving_by_income.csv missing (needs CES keys in step 1).")
-        else:
-            chart_F_ces(out)
-    except Exception as e:
-        print(f"  FAILED: {e}")
-
-    print("\nDone. See ./figures — now run 03_econometrics.py")
+    print("\nDone. See ../../figures — now run 03_econometrics.py")
 
 
 if __name__ == "__main__":
