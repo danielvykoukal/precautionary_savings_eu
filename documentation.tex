@@ -1,0 +1,1527 @@
+% ============================================================================
+%  Precautionary Saving in Europe --- Project Documentation
+%  Compile with:  pdflatex documentation.tex   (run twice for references)
+%  Font: Palatino (mathpazo, with matching math).
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+% ---- Fonts: Palatino for text and math -------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathpazo}            % Palatino text + matching maths (Hermann Zapf)
+\linespread{1.05}                % Palatino reads better with a touch more leading
+\usepackage{microtype}
+
+% ---- Layout ----------------------------------------------------------------
+\usepackage[a4paper,margin=2.6cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\graphicspath{{figures/}{./}}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=3pt}
+\usepackage{xcolor}
+\definecolor{codebg}{gray}{0.96}
+\definecolor{rule}{gray}{0.5}
+
+% ---- Code / paths listing style --------------------------------------------
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{rule},
+  breaklines=true, columns=fullflexible,
+  showstringspaces=false, keepspaces=true,
+  xleftmargin=4pt, xrightmargin=4pt, framesep=4pt,
+}
+
+\usepackage[hidelinks,colorlinks=true,linkcolor=black!70!blue,
+            urlcolor=black!60!blue,citecolor=black]{hyperref}
+
+% ---- Convenience macros ----------------------------------------------------
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\dataset}[1]{\textsc{#1}}
+% Robust figure inclusion: shows a placeholder if the PNG is absent.
+\newcommand{\projfig}[3]{% {width-fraction}{file-without-ext}{caption}
+  \begin{figure}[htbp]\centering
+    \IfFileExists{figures/#2.png}
+      {\includegraphics[width=#1\linewidth]{#2}}
+      {\fbox{\parbox{0.78\linewidth}{\centering\itshape figure not found ---
+        run the pipeline (\code{02\_make\_figures.py}) to generate it.}}}
+    \caption{#3}\label{fig:#2}
+  \end{figure}}
+% Figures produced by the follow-the-money extension.
+\newcommand{\extfig}[3]{% {width-fraction}{file-without-ext}{caption}
+  \begin{figure}[htbp]\centering
+    \IfFileExists{#2.png}
+      {\includegraphics[width=#1\linewidth]{#2}}
+      {\fbox{\parbox{0.78\linewidth}{\centering\itshape figure not found ---
+        run \code{extension\_follow\_money/run.sh} to generate it.}}}
+    \caption{#3}\label{fig:#2}
+  \end{figure}}
+
+\title{\textbf{Precautionary Saving in Europe}\\[2pt]
+       \large Data, Pipeline, and Econometric Methodology}
+\author{Project documentation}
+\date{\today}
+
+% Figure macro used by the merged extension parts (flat figures/ dir).
+\newcommand{\fig}[3]{%
+  \begin{figure}[htbp]\centering
+    \IfFileExists{figures/#2.png}
+      {\includegraphics[width=#1\linewidth]{#2}}
+      {\fbox{\parbox{0.78\linewidth}{\centering\itshape figure not found.}}}
+    \caption{#3}\label{fig:#2}
+  \end{figure}}
+\usepackage[section]{placeins}  % keep each section's floats within it
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+This document explains, step by step, the empirical project behind the
+hypothesis that the euro area's elevated household saving rate is
+\emph{substantially precautionary} --- a response to geopolitical and economic
+uncertainty rather than to income or wealth alone. It documents (i) the
+reproducible three-stage software pipeline, (ii) every data series used, with an
+explicit justification of its source, frequency, length, units, and treatment,
+and (iii) the econometric strategy in full detail: stationarity classification,
+the ARDL bounds test for a long-run relationship, Granger causality, and a
+structural VAR with orthogonalised impulse responses. A final section turns to
+the \emph{composition} of saving --- a ``follow-the-money'' test that, unlike the
+level analysis, can separate a yield-chasing reaction to ECB rates from a
+precautionary one, and finds the post-2022 reallocation is far more likely the
+former. Reported figures come from a clean end-to-end run; they are produced live
+and may be revised by the data providers, so they should be regenerated before
+citation.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+\hrule
+\bigskip
+
+% ============================================================================
+
+\clearpage
+\part{Core study: the level evidence}
+
+\section{Overview and research question}
+% ============================================================================
+
+\paragraph{Hypothesis.} The euro-area household saving rate has stayed well above
+its pre-pandemic norm even after pandemic forced-saving and the income/wealth
+shocks unwound. We test whether this persistence is \emph{precautionary}: driven
+by elevated uncertainty, it should
+\begin{enumerate}[label=(\Alph*)]
+  \item move \emph{with} uncertainty over time (the time-series leg);
+  \item have risen \emph{more} where the Russia/energy shock bit hardest (the
+        cross-country leg);
+  \item be concentrated among households who can \emph{afford} to save, while the
+        fear itself weighs most on those who cannot (the distributional leg).
+\end{enumerate}
+Each leg maps to a chart and, for leg~(A), to a battery of time-series tests.
+The guiding methodological principle is that \emph{co-movement is not
+causation}: uncertainty, policy rates, and inflation all rose together after
+2022, so the descriptive charts can only show association. Section~\ref{sec:econ}
+is the attempt to isolate the precautionary channel formally.
+
+\paragraph{What the documentation covers.} Section~\ref{sec:pipeline} describes
+the reproducible pipeline. Section~\ref{sec:data} justifies every data choice.
+Section~\ref{sec:descriptive} walks through the descriptive charts.
+Section~\ref{sec:econ} is the detailed econometric methodology and results.
+Sections~\ref{sec:interpretation}--\ref{sec:limits} synthesise and qualify the
+findings. The appendix lists the file tree, exact commands, and a data
+dictionary.
+
+% ============================================================================
+\section{The reproducible pipeline}\label{sec:pipeline}
+% ============================================================================
+
+The project is deliberately split into three scripts by \emph{function}, so that
+each stage can be run, audited, and re-run independently. Data collection (slow,
+network-bound, non-deterministic across vintages) is separated from figure
+rendering (fast, deterministic, offline) and from econometric analysis
+(deterministic, offline).
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{4.4cm} p{4.0cm} p{6.2cm}@{}}
+\toprule
+\textbf{Stage / script} & \textbf{Reads} & \textbf{Writes} \\
+\midrule
+\code{01\_collect\_data.py} & live APIs (Eurostat, FRED, GPR, OECD) &
+  \code{data/*.csv} (tidy series) \\
+\code{02\_make\_figures.py} & \code{data/*.csv} &
+  \code{figures/*.png} (charts A--F) \\
+\code{03\_econometrics.py} & \code{data/*.csv} &
+  \code{data/econometrics\_results.md}, \code{figures/A2*, A3*} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{One-command reproduction.} The wrapper \code{run\_all.sh} installs the
+pinned dependencies and runs the three stages in order:
+\begin{lstlisting}
+bash run_all.sh        # pip install, then run 01 -> 02 -> 03 (classic Python)
+\end{lstlisting}
+
+\paragraph{Classic Python, no virtual environment.} The project runs directly on
+a standard system Python ($\ge 3.11$); there is nothing to create or activate.
+\code{run\_all.sh} installs the requirements into the chosen interpreter
+(\code{python3} by default; override with the \code{PYTHON} variable) and then
+runs the three stages. Dependencies are pinned in \code{requirements.txt} so the
+numerical results are stable across machines. If the default \code{python3} is a
+Homebrew/``externally-managed'' build that refuses a global \code{pip install},
+point \code{PYTHON} at a python.org interpreter or add \code{--user} to the pip
+line.
+
+\paragraph{Network robustness.} Downloads use the \code{requests} library, which
+ships its own certificate bundle (\code{certifi}); this avoids the
+\code{SSL: CERTIFICATE\_VERIFY\_FAILED} errors that the standard-library URL
+reader raises on a stock macOS Python. Each data pull is wrapped in
+\code{try/except}: a failed source prints a clear message and leaves any existing
+CSV from a previous run untouched, so a transient outage in one provider never
+corrupts the rest of the dataset. The Caldara--Iacoviello index is distributed
+as a legacy \code{.xls} file, which is why \code{xlrd} is a pinned dependency.
+
+% ============================================================================
+\section{Data}\label{sec:data}
+% ============================================================================
+
+This section is the heart of the ``why this data'' question. For each series we
+state the \emph{source} and exact dataset code, the \emph{frequency} and why it
+is appropriate, the \emph{length/coverage}, the \emph{units}, and any
+\emph{transformation} and \emph{caveat}. All series are free and require no API
+key. Spans below are from a representative run and will extend as providers
+release new vintages.
+
+% ----------------------------------------------------------------------------
+\subsection{The target: euro-area household saving rate (quarterly)}
+% ----------------------------------------------------------------------------
+\begin{description}[leftmargin=1.4em,style=nextline]
+\item[Source / code] Eurostat sector accounts, \dataset{nasq\_10\_ki} (key
+  indicators), item \code{SRG\_S14\_S15}, sector \code{S14\_S15} (households and
+  NPISH), seasonally and calendar adjusted (\code{SCA}), geography \code{EA20}.
+\item[Frequency] Quarterly. This is the natural and \emph{binding} frequency: the
+  saving rate is only published quarterly, and it is the dependent variable, so
+  all higher-frequency regressors are aggregated down to it (Sec.~\ref{sec:freq})
+  rather than the reverse.
+\item[Coverage] 1999Q1--2025Q4 ($\approx$108 quarters); median level $\approx
+  13.2\%$, latest $\approx 14.4\%$.
+\item[Units] Gross household saving as a percentage of gross disposable income
+  (the gross saving rate). We use the \emph{gross} rate because it is the
+  headline Eurostat definition with the longest, most comparable series; this is
+  noted whenever cross-source comparisons arise.
+\item[Why this exact series] The \dataset{nasq\_10\_ki} table contains many
+  ratios (saving rate, investment rate, profit share, $\ldots$) under different
+  \code{na\_item} codes. The collector \emph{never averages across indicators};
+  it auto-selects the single dimension combination whose values look like a
+  household saving rate---preferring a saving-named \code{na\_item} and a level
+  inside a plausible band of $5\%$--$30\%$, closest to a typical $\sim$13\%---and
+  refuses any candidate outside that band. This guards against a silent
+  mis-selection that, in an earlier version, blended unrelated ratios into a
+  nonsensical $\sim$35\% ``saving rate''. The datasets \dataset{nasa\_10\_ki} and
+  \dataset{teina500} are tried as fallbacks.
+\end{description}
+
+% ----------------------------------------------------------------------------
+\subsection{Uncertainty proxies}
+% ----------------------------------------------------------------------------
+Precautionary saving theory is about \emph{perceived risk}, which is
+unobservable; we proxy it two ways and let the data adjudicate
+(Sec.~\ref{sec:timing}).
+\begin{description}[leftmargin=1.4em,style=nextline]
+\item[Geopolitical Risk (GPR)] Caldara \& Iacoviello, a newspaper-based index of
+  geopolitical risk. Monthly, here from 1999-01 onward (the index itself extends
+  back to 1900). It is the preferred proxy for this project because the framing
+  is explicitly geopolitical (it spikes cleanly at the February 2022 invasion).
+  Distributed as a keyless \code{.xls}.
+\item[EU Economic Policy Uncertainty (EPU)] FRED series \code{EUEPUINDXM}
+  (Baker--Bloom--Davis methodology for Europe). Monthly, 1999-01 onward. A
+  broader ``economic-policy'' notion of uncertainty, used as the robustness
+  alternative to GPR.
+\end{description}
+\emph{Frequency rationale.} Both are monthly; uncertainty can move sharply
+within a quarter, so a monthly source preserves the timing of spikes, which we
+then average to quarterly to match the target.
+
+% ----------------------------------------------------------------------------
+\subsection{Confounders (controls)}
+% ----------------------------------------------------------------------------
+Two variables co-move with uncertainty and independently affect saving; omitting
+them would bias any estimate of the precautionary channel.
+\begin{description}[leftmargin=1.4em,style=nextline]
+\item[ECB policy rate] FRED \code{ECBDFR} (deposit facility rate); fallbacks
+  \code{ECBMRRFR}, then a 3-month interbank rate. Published \emph{daily}
+  ($\approx$10{,}000 observations from 1999); we take the quarterly mean. A higher
+  policy rate raises the reward to saving, a competing explanation for the
+  post-2022 rise.
+\item[HICP inflation] Eurostat \dataset{prc\_hicp\_manr}, all-items \code{CP00},
+  \code{EA20}, year-on-year \%. Monthly, from 2000-12. High inflation both erodes
+  real incomes and can itself raise precaution; it must be held constant.
+\end{description}
+
+% ----------------------------------------------------------------------------
+\subsection{Cross-country cross-section (leg B)}
+% ----------------------------------------------------------------------------
+\begin{description}[leftmargin=1.4em,style=nextline]
+\item[Saving by country] Eurostat \dataset{tec00131} (item \code{SRG\_S14\_S15}),
+  \emph{annual}, 21 EU countries, 2014--2025. Annual is the only frequency at
+  which a comparable cross-country household saving rate exists; for a
+  cross-section that is sufficient.
+\item[Energy shock] Eurostat \dataset{prc\_hicp\_manr} restricted to energy
+  (\code{NRG}), monthly YoY \%. For each country we take the \emph{peak} monthly
+  energy inflation during calendar 2022, a single scalar measuring how hard the
+  energy shock hit.
+\item[Derived join] \code{scatter\_energy\_vs\_saving.csv} pairs each country's
+  energy peak with its \emph{change} in saving from 2019 to the 2023/24 average.
+  Using the change (not the level) nets out structural North--South differences
+  in saving habits, the more defensible test of the shock's effect.
+\end{description}
+
+% ----------------------------------------------------------------------------
+\subsection{Distribution (leg C)}
+% ----------------------------------------------------------------------------
+There is no single official, annual, euro-area saving-rate-by-quintile series, so
+the project triangulates.
+\begin{description}[leftmargin=1.4em,style=nextline]
+\item[Eurostat ICW] \dataset{icw\_sr\_03} (experimental ``Income, Consumption and
+  Wealth'' statistics), median saving rate by income quintile (\code{QU1}--%
+  \code{QU5}), unit \code{PC\_DI} (\% of disposable income), geography \code{EA}.
+  Compiled only at multi-year reference points ($\sim$2010/2015/2020), so it is
+  read as \emph{structural} (the shape of the distribution), not as an annual
+  path.
+\item[OECD EG DNA] Expert Group on Distributional National Accounts, attempted
+  via the OECD SDMX API for an annual by-quintile panel. \textbf{Status:} the
+  queried flow returns data without a usable quintile dimension, so chart~E is
+  not produced. The pull is retained, clearly flagged, for when the correct flow
+  id is confirmed; it is a known data-availability limitation, not a code error.
+\item[ECB CES expectations] Expected unemployment 12 months ahead by income
+  group, from published ECB Consumer Expectations Survey figures. These are not
+  in any bulk API, so they are entered as documented constants in
+  \code{01\_collect\_data.py} and written to
+  \code{ces\_unemp\_expectations.csv}; refresh from the latest CES release before
+  publishing.
+\end{description}
+
+% ----------------------------------------------------------------------------
+\subsection{Frequency alignment}\label{sec:freq}
+% ----------------------------------------------------------------------------
+The econometrics needs one common frequency. Because the dependent variable (the
+saving rate) is quarterly, \emph{quarterly is the binding frequency}: every
+monthly or daily regressor is collapsed to a quarterly mean
+($\text{resample}(\text{QS}).\text{mean}()$), and series are inner-joined on
+date. Aggregating down (averaging) rather than interpolating up avoids inventing
+within-quarter variation that the data do not contain. After alignment the
+estimation sample is \textbf{2000Q4--2025Q4 (101 quarters)}; the start is set by
+the shortest series (HICP inflation, from 2000-12) and the end by the
+target. The quarterly mean also lightly smooths the monthly uncertainty proxies,
+which is innocuous for the relationships we study.
+
+% ============================================================================
+\section{Descriptive evidence}\label{sec:descriptive}
+% ============================================================================
+
+The charts are intentionally simple; they motivate the formal tests but do not
+substitute for them.
+
+\projfig{0.92}{A_saving_vs_uncertainty}{\textbf{Leg A.} Top: the euro-area
+household saving rate against its 2012--19 norm, with the post-2022 excess
+shaded and the February 2022 invasion marked. Bottom: the candidate
+drivers---uncertainty, the ECB rate, and HICP inflation---standardised to
+$z$-scores. They visibly rise together, which is precisely why eyeballing cannot
+isolate the precautionary channel.}
+
+\projfig{0.78}{B_energy_vs_saving_scatter}{\textbf{Leg B.} Each country's peak
+2022 energy inflation (the shock) against its change in saving 2019$\to$2023/24.
+Colour marks editorial Russia/energy exposure; the dashed line is the OLS fit.
+The slope is positive but noisy.}
+
+\projfig{0.62}{B2_saving_by_country_bar}{\textbf{Leg B, levels.} Household saving
+rate by country in the latest year. Germany and the Nordics sit at the top---but
+they were structurally high savers before the war, which is the confound that
+motivates using the \emph{change} (previous figure) for any causal reading.}
+
+\projfig{0.70}{C_saving_by_quintile}{\textbf{Leg C, structure.} Median saving
+rate by income quintile (Eurostat ICW, latest snapshot). The bottom quintile
+\emph{dissaves}; saving climbs steeply to the top. Any rise in the aggregate rate
+is mechanically a story about the upper part of the distribution.}
+
+\projfig{0.70}{C2_expectations_by_income}{\textbf{Leg C, fear.} Expected
+unemployment 12 months ahead by income group (ECB CES). Lower-income households
+fear job loss most, yet (previous figure) can least afford to save---the equity
+twist of the precautionary story.}
+
+\projfig{0.74}{D_icw_slope}{\textbf{Leg C, over time.} The saving rate by
+quintile across the few ICW reference years. Read as a structural shift between
+snapshots, not as an annual path.}
+
+% ============================================================================
+\section{Econometric methodology}\label{sec:econ}
+% ============================================================================
+
+This section is deliberately detailed. The aim is to test leg~(A)
+---does uncertainty \emph{drive} saving?---while taking seriously the statistical
+properties of the series. All tests run on the aligned quarterly panel
+$\{\text{saving}_t,\ \text{proxy}_t,\ \text{rate}_t,\ \text{inflation}_t\}$,
+$t=$ 2000Q4$\ldots$2025Q4.
+
+% ----------------------------------------------------------------------------
+\subsection{Design principle: respect the integration order}
+% ----------------------------------------------------------------------------
+An earlier version of this analysis differenced \emph{every} series and fitted a
+VECM. That was a mistake worth recording, because it motivates the current
+design:
+\begin{itemize}
+  \item If a series is already stationary (I(0)), differencing it
+  \emph{over-differences}: it discards the level information that carries the
+  precautionary signal and biases impulse responses toward zero (a
+  unit-root/non-invertible MA component is introduced).
+  \item A VECM (and the Johansen test behind it) is only meaningful when
+  \emph{all} series are I(1) and share cointegrating relationships. Feeding it
+  stationary variables produces a ``long-run'' reading that is an artefact.
+\end{itemize}
+The current strategy therefore (1) classifies each series' order, (2) tests the
+long-run relationship with a method valid for a \emph{mix} of I(0) and I(1)
+regressors (ARDL bounds), and (3) runs Granger and the VAR/IRF in the
+representation each series actually needs---levels for the stationary core. ARMA
+is intentionally not used: it models a single series' own memory, not a
+driver relationship.
+
+% ----------------------------------------------------------------------------
+\subsection{Step 1 --- Integration order from ADF and KPSS together}
+% ----------------------------------------------------------------------------
+We classify each series with two complementary unit-root tests, because they
+have \emph{opposite} null hypotheses and so cross-check each other.
+
+\paragraph{Augmented Dickey--Fuller (ADF).} Regress
+\begin{equation}
+  \Delta y_t = \alpha + \gamma\,y_{t-1}
+             + \sum_{i=1}^{p}\delta_i\,\Delta y_{t-i} + \varepsilon_t,
+  \qquad H_0:\ \gamma = 0\ \text{(unit root, non-stationary)} .
+\end{equation}
+Lag length $p$ is chosen by AIC. A \emph{small} $p$-value rejects the unit root
+$\Rightarrow$ the series is stationary.
+
+\paragraph{KPSS.} Decompose $y_t = \xi t + r_t + \varepsilon_t$ with a random
+walk $r_t = r_{t-1}+u_t$ and test
+\begin{equation}
+  H_0:\ \sigma^2_u = 0\ \text{(level/trend stationary)} .
+\end{equation}
+Here the null is the \emph{opposite} of ADF's. We use the level-stationary form
+(\code{regression="c"}). A \emph{large} $p$-value fails to reject stationarity.
+
+\paragraph{Decision rule.} The series is confidently I(0) when ADF rejects
+\emph{and} KPSS does not; confidently I(1) when ADF does not reject \emph{and}
+KPSS does. When the two disagree (``\textsc{conflict}'') the order is genuinely
+ambiguous---a hallmark of borderline or structurally-broken series---which is
+exactly the case the long-run test below is chosen to tolerate. The collector
+codes the order as I(0) iff ADF rejects at 5\%, and flags agreement with KPSS.
+
+\begin{table}[htbp]\centering
+\caption{Integration order, full sample (proxy $=$ GPR). $p$-values; ADF $H_0$:
+unit root, KPSS $H_0$: stationarity.}
+\label{tab:integ}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+series & ADF $p$ (level) & KPSS $p$ (level) & ADF $p$ ($\Delta$) & order & agree? \\
+\midrule
+saving    & 0.017 & 0.087 & 0.000 & I(0) & yes \\
+gpr       & 0.000 & 0.100 & 0.000 & I(0) & yes \\
+rate      & 0.061 & 0.083 & 0.001 & I(1) & \textsc{conflict} \\
+inflation & 0.652 & 0.100 & 0.000 & I(1) & \textsc{conflict} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Reading.} The \emph{core} variables---saving and the GPR
+proxy---are clearly I(0): both tests agree. The two controls are ambiguous
+(borderline I(1)). A system mixing I(0) and ambiguous-I(1) series is precisely
+where blanket differencing or Johansen would mislead, and where ARDL bounds is
+the right tool.
+
+% ----------------------------------------------------------------------------
+\subsection{Step 2 --- Long-run relationship: the ARDL bounds test}
+% ----------------------------------------------------------------------------
+We test for a \emph{level} (long-run) relationship between saving and the drivers
+with the Pesaran--Shin--Smith (2001) bounds test, estimated through the
+unrestricted (conditional) error-correction model. For dependent variable
+$y_t=\text{saving}_t$ and regressors $x_t=(\text{proxy},\text{rate},
+\text{inflation})$,
+\begin{equation}
+  \Delta y_t = c
+    + \sum_{i=1}^{p-1}\phi_i \Delta y_{t-i}
+    + \sum_{j}\sum_{l=0}^{q_j}\theta_{j l}\,\Delta x_{j,t-l}
+    + \underbrace{\rho\,y_{t-1} + \sum_{j}\pi_j\,x_{j,t-1}}_{\text{lagged levels}}
+    + \varepsilon_t .
+  \label{eq:uecm}
+\end{equation}
+The bounds $F$-test has
+\begin{equation}
+  H_0:\ \rho = \pi_1 = \dots = \pi_k = 0
+  \quad\text{(no long-run level relationship).}
+\end{equation}
+
+\paragraph{Why this test.} Its decisive advantage is that the critical values
+come as a \emph{pair of bounds}: a lower bound computed as if all regressors were
+I(0) and an upper bound as if all were I(1). The decision is therefore
+\emph{order-agnostic}---valid for any mix of I(0) and I(1) regressors (it
+requires only that no series is I(2)):
+\begin{itemize}
+  \item $F >$ upper bound $\Rightarrow$ reject $H_0$: a long-run relationship
+  exists regardless of integration order;
+  \item $F <$ lower bound $\Rightarrow$ cannot reject $H_0$: no long-run
+  relationship;
+  \item lower $\le F \le$ upper $\Rightarrow$ inconclusive.
+\end{itemize}
+Given the \textsc{conflict} flags in Table~\ref{tab:integ}, this is the correct
+long-run test; Johansen is reported only for reference (below) and should be
+ignored unless every series is I(1).
+
+\paragraph{Implementation.} The forced-saving COVID quarters (2020) are dropped
+as outliers. The model order is selected by minimising AIC over endogenous lags
+$L\in\{1,\dots,4\}$ and exogenous order $O\in\{1,\dots,4\}$ (every exogenous
+order $\ge 1$, as the UECM requires), with an unrestricted constant and no trend
+(Pesaran et al.\ ``case III'').
+
+\paragraph{Result (GPR).} The AIC-selected specification is $L=3$, $O=1$. The
+bounds statistic is
+\[
+  F = 0.94 \quad\text{vs.\ the 5\% I(1) upper bound } 4.01,
+\]
+so $F$ lies \emph{below even the lower bound}: we cannot reject $H_0$. There is
+\textbf{no statistical evidence of a long-run level relationship} between the
+saving rate and the drivers over this sample. (For reference only, the Johansen
+trace implies rank 2, but with mixed integration orders this is uninformative and
+disregarded.)
+
+\begin{table}[htbp]\centering
+\caption{ARDL bounds critical values (Pesaran--Shin--Smith, case III). The
+test statistic $F=0.94$ is below the lower bound at every level.}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+significance & lower bound, I(0) & upper bound, I(1) \\
+\midrule
+10\% & 2.46 & 3.52 \\
+ 5\% & 2.88 & 4.01 \\
+ 1\% & 3.78 & 5.05 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ----------------------------------------------------------------------------
+\subsection{Step 3 --- Granger causality}
+% ----------------------------------------------------------------------------
+Granger causality asks whether past values of the proxy improve the prediction of
+saving \emph{beyond} saving's own past. We test it in the stationary
+representation of each series (levels for the I(0) core, here), drop COVID 2020,
+and scan lags $1$--$4$:
+\begin{equation}
+  \text{saving}_t = \alpha + \sum_{i=1}^{m}\beta_i\,\text{saving}_{t-i}
+    + \sum_{i=1}^{m}\eta_i\,\text{proxy}_{t-i} + u_t,
+  \qquad H_0:\ \eta_1=\dots=\eta_m=0 .
+\end{equation}
+An $F$-test $p<0.05$ on the $\{\eta_i\}$ means the proxy Granger-causes saving.
+
+\paragraph{Result (GPR, full sample).} The $p$-values for ``uncertainty $\to$
+saving'' are $0.91,\,0.44,\,0.71,\,0.72$ at lags $1$--$4$: \textbf{no Granger
+causality} from uncertainty to saving at any lag. (The reverse direction,
+saving $\to$ uncertainty, is significant at lags 3--4, but a household saving
+rate ``predicting'' a global geopolitical-risk index is not economically
+meaningful and most likely reflects common low-frequency movement.) Two cautions
+apply: Granger causality is \emph{predictive}, not structural; and on $\sim$100
+quarters with a large COVID hole the test has limited power, so a null is weak
+evidence of absence, not evidence of a null.
+
+% ----------------------------------------------------------------------------
+\subsection{Step 4 --- Structural VAR and impulse responses}
+% ----------------------------------------------------------------------------
+To trace the dynamic response of saving to an uncertainty shock while
+controlling for the confounders, we estimate a VAR and compute orthogonalised
+impulse-response functions (IRFs).
+
+\paragraph{Specification.} With $Y_t=(\text{proxy},\text{rate},\text{inflation},
+\text{saving})'$,
+\begin{equation}
+  Y_t = c + \sum_{i=1}^{p} A_i\,Y_{t-i} + B\,D_t + u_t,
+  \qquad u_t \sim (0,\Sigma),
+\end{equation}
+where $D_t$ are dummies for the forced-saving COVID quarters (2020Q2--2021Q1) so
+that the pandemic spike does not contaminate the dynamics. Because the core
+series are I(0) (Table~\ref{tab:integ}), the VAR is estimated \emph{in levels},
+and the IRF is read directly as a level response---no cumulation, no
+over-differencing. (If the core were not both I(0), the code estimates in first
+differences and cumulates the IRF back to levels.) Lag length $p$ is chosen by
+AIC and capped at $4$ to keep the responses stable on a short sample.
+
+\paragraph{Identification.} Shocks are orthogonalised by a Cholesky
+factorisation $\Sigma = PP'$ with the recursive ordering
+\[
+  \text{proxy} \;\to\; \text{rate} \;\to\; \text{inflation} \;\to\; \text{saving}.
+\]
+The identifying assumption is that a variable ordered earlier may affect those
+ordered later \emph{within the quarter}, but not the reverse. Placing uncertainty
+\emph{first} treats it as the most exogenous block---a geopolitical-risk index is
+not plausibly driven by euro-area household saving within a quarter---and placing
+saving \emph{last} lets it react contemporaneously to all three drivers. This is
+the natural ordering for the precautionary question; like any recursive scheme it
+is an assumption, not a fact, and is the main identification caveat.
+
+\paragraph{Result (GPR).} The response of saving to a $+1$ standard-deviation GPR
+shock is \emph{positive but statistically insignificant}:
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+sample & peak response & 95\% CI at peak \\
+\midrule
+full (2000Q4--2025Q4) & $+0.108$ pp at 0q & $[-0.015,\ +0.230]$ \\
+subsample (2010+)     & $+0.161$ pp at 6q & $[-0.019,\ +0.340]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The sign is \emph{consistent with} precaution---more uncertainty, more
+saving---but the confidence interval includes zero in both samples, so the effect
+is not statistically distinguishable from no effect. Figure~\ref{fig:A2_irf_saving_to_uncertainty}
+plots the full-sample IRF with its band.
+
+\projfig{0.66}{A2_irf_saving_to_uncertainty}{Orthogonalised impulse response of
+the saving rate to a $+1$ s.d.\ GPR shock (levels VAR; controls: ECB rate and
+HICP inflation; COVID dummies). The 95\% band straddles zero throughout.}
+
+% ----------------------------------------------------------------------------
+\subsection{Step 5 --- Robustness: subsample and proxy choice}
+% ----------------------------------------------------------------------------
+Two robustness dimensions are built in. First, the key tests are re-run on a
+\textbf{post-2010 subsample} (64 quarters)---the period most relevant to the
+modern saving puzzle---with the same qualitative result (positive, insignificant
+IRF; no Granger causality). Second, the entire analysis can be re-run with the
+\textbf{EPU} proxy instead of GPR (\code{--proxy epu}); EPU yields the same
+narrative (a positive but insignificant response), confirming the conclusion is
+not an artefact of one proxy.
+
+% ----------------------------------------------------------------------------
+\subsection{Step 6 --- Proxy and timing: lead/lag cross-correlation}
+\label{sec:timing}
+% ----------------------------------------------------------------------------
+Finally we ask, descriptively, \emph{which} proxy and at \emph{what} lead/lag
+best tracks saving. After $z$-scoring both series we compute the
+cross-correlation at quarterly shifts $k=-8,\dots,+8$,
+\begin{equation}
+  \rho_k = \operatorname{corr}\!\big(z(\text{saving})_t,\;
+                                     z(\text{proxy})_{t-k}\big),
+\end{equation}
+where $k>0$ means the proxy \emph{leads} saving. We report it on both levels and
+first differences ($\Delta$), because the levels of trending series mechanically
+inflate correlations, and we drop COVID 2020.
+
+\paragraph{Result.} In levels, GPR attains the larger peak correlation
+($|\rho|=0.42$) than EPU ($0.35$), which is why GPR is the preferred headline
+proxy. The peak occurs at $k=-4$ for GPR (i.e.\ the proxy is contemporaneous-to-
+slightly-\emph{lagging} rather than cleanly leading), and in differences the
+peaks are weaker ($-0.32$ for GPR at $k=-2$). The lead/lag evidence is therefore
+suggestive of co-movement but does \emph{not} pin down a clean
+``uncertainty-leads-saving'' timing---consistent with the insignificant formal
+tests. Figure~\ref{fig:A3_proxy_leadlag} shows the full profiles.
+
+\projfig{0.92}{A3_proxy_leadlag}{Lead/lag cross-correlation of the saving rate
+with each proxy, in levels (left) and changes (right). $k>0$: proxy leads saving.
+COVID 2020 dropped.}
+
+% ============================================================================
+\section{Did rates or fear drive it? The follow-the-money test}\label{sec:followmoney}
+% ============================================================================
+
+The methodology of Section~\ref{sec:econ} targets the \emph{level} of the saving
+rate and returns nulls: with so few quarters and three drivers moving together
+after 2022, no test can cleanly assign the rise to precaution. This section asks a
+different, sharper question --- about the \emph{composition} of saving rather than
+its level --- where the precautionary and the ``yield-chasing'' (intertemporal-%
+substitution) explanations make \emph{opposite} predictions and can therefore be
+separated. The analysis lives in \code{extension\_follow\_money/}.
+
+\subsection{The discriminating idea: where the money goes}
+Fear and yield make opposite predictions about \emph{where} households park new
+saving. Precaution favours liquid, instant-access assets (the buffer must be
+reachable in an emergency); yield-chasing favours higher-paying but less-liquid
+ones. We split households' annual net acquisition of financial assets (Eurostat
+\dataset{nasa\_10\_f\_tr}, sector S14\_S15, euro area, current-price flows) into
+two buckets and track the \emph{tilt} between them:
+\begin{align*}
+\text{instant-access} &= \text{currency (F21)} + \text{overnight deposits (F22)},\\
+\text{locked-for-yield} &= \text{time deposits (F29)} + \text{bonds (F3)},\\
+\text{tilt}_t &= \text{locked-for-yield}_t - \text{instant-access}_t \quad(\text{EUR bn/yr}).
+\end{align*}
+A positive tilt means that year's saving leaned toward yield; negative, toward
+instant cash.
+
+\subsection{Linking the asset flows back to the saving rate}
+The tilt is a \emph{composition} measure, so it does not map to the saving rate on
+its own. The bridge is an accounting identity: when a household saves, the money
+flows into financial assets, into housing, or into paying down debt; the part going
+into financial assets is exactly the \emph{sum of all the asset-type flows we
+decompose}, and the tilt is \emph{where within that sum} the money leans. So if the
+decomposition is legitimate, combining all the buckets should track the saving
+rate.
+
+It does. Summing the asset flows and scaling by household gross disposable income
+($B6G$, Eurostat \dataset{nasa\_10\_nf\_tr}) gives a series that correlates
+$+0.87$ with the saving rate in levels and $+0.73$ as a share of income; both
+spike in 2020, dip in 2022--23, and recover. As a reconciliation, rebuilding the
+rate from the raw income accounts (gross saving $B8G$ over disposable income
+$B6G$) reproduces the published saving rate almost exactly (correlation $+1.00$;
+Table~\ref{tab:reconcile}). The combined-flows line sits a few points \emph{below}
+the saving rate --- the wedge is mainly housing investment, which saving funds but
+is not a financial asset --- yet the two clearly co-move
+(Figure~\ref{fig:F2_total_vs_saving}). This places the composition analysis firmly
+inside the saving story: the tilt describes \emph{how the saving in the headline
+rate was deployed}.
+
+\begin{table}[htbp]\centering
+\caption{Reconciliation: the rate rebuilt from the income accounts ($B8G/B6G$)
+matches the published saving rate, and the combined financial-asset flow tracks it
+(all in \% of disposable income).}
+\label{tab:reconcile}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+year & combined flows & saving rate ($B8G/B6G$) & saving rate (published) \\
+\midrule
+2020 & 15.0 & 19.7 & 19.5 \\
+2022 &  8.8 & 13.6 & 13.5 \\
+2023 &  6.9 & 14.4 & 14.2 \\
+2025 &  9.3 & 15.0 & 14.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\extfig{0.9}{F2_total_vs_saving}{Combining all the asset flows reproduces the
+saving-rate path. Navy: the published household saving rate. Green dashed: the sum
+of all net financial-asset flows, as a share of disposable income. They co-move
+($\mathrm{corr}=+0.73$); the roughly constant gap is housing investment.}
+
+\subsection{Descriptive evidence}
+The destination of saving flipped after the ECB began raising rates in mid-2022.
+The share of yearly financial saving going into instant-access cash fell from
+about 66\% (2015--19) to about 2\% (2022--25), while net household \emph{bond}
+purchases went from negative (net selling of roughly EUR 40--50 bn/yr in 2019--21)
+to +EUR 96 bn (2022) and +EUR 311 bn (2023). Households went from shunning bonds
+to buying them in record size precisely as yields rose --- the reach-for-yield
+pattern, and the opposite of the 2020 COVID episode, when saving piled into
+instant-access cash (the precautionary pattern). The tilt correlates $+0.79$ with
+the ECB policy rate (annual). Figures~\ref{fig:F4_tilt_vs_saving}
+and~\ref{fig:F5_tilt_vs_rates} show the picture.
+
+\extfig{0.95}{F4_tilt_vs_saving}{Composition tilt (bars; locked-for-yield minus
+instant-access, EUR bn/yr) against the household saving rate (line). The saving
+\emph{level} stays high throughout --- peaking in the COVID year, when the tilt is
+most negative (cash) --- while the \emph{composition} flips to yield (red) once
+rates rise. Regimes shaded as in chart~A: the zero-lower-bound era, COVID forced
+saving, and the post-2022 period of interest.}
+
+\extfig{0.95}{F5_tilt_vs_rates}{The composition tilt (bars) against the ECB policy
+rate (line); the two move together, $\mathrm{corr}=+0.79$ over 2002--2025.}
+
+\subsection{A model comparison: rates/inflation versus precaution}
+Because the tilt is signed, the two stories give opposite, testable predictions.
+We regress the tilt on the ECB rate, inflation, and an uncertainty proxy (the
+Geopolitical Risk index, GPR), each standardised to a $z$-score so the
+coefficients are comparable (the effect of a one-standard-deviation move, in
+EUR bn):
+\begin{equation}
+\text{tilt}_t = \beta_0 + \beta_1 \widetilde{r}_t + \beta_2 \widetilde{\pi}_t
+              + \beta_3 \widetilde{u}_t + \varepsilon_t,
+\label{eq:tilt}
+\end{equation}
+with $\widetilde r$ the rate, $\widetilde\pi$ inflation, $\widetilde u$
+uncertainty. The competing hypotheses are sharp:
+\[
+\text{yield-chasing} \;\Rightarrow\; \beta_1 > 0, \qquad
+\text{precaution} \;\Rightarrow\; \beta_3 < 0
+\]
+(more uncertainty should push saving \emph{toward} instant cash, a more negative
+tilt). Standard errors are heteroskedasticity-robust (HC3), appropriate for the
+small sample.
+
+\paragraph{Letting the drivers compete.} Rather than lean on information criteria,
+we simply let the three drivers compete in a single regression and read the result
+two ways: (i) which coefficient is statistically significant once all are
+included, and (ii) how much of the year-to-year variation each story explains on
+its own ($R^2$). The regression table (Table~\ref{tab:compecon}) does the rest.
+
+\subsection{Results}
+Table~\ref{tab:compecon} is the horse race for the tilt (annual, $n=24$). The
+reading is unambiguous. With all drivers included, \emph{only the ECB rate is
+significant} ($+304$, $p\approx0.02$); inflation is not, and uncertainty is not
+--- and uncertainty carries the \emph{wrong} sign for precaution. The lopsided fit
+says the same: the rates+inflation model explains about $74\%$ of the tilt's
+year-to-year variation (adjusted $R^2$), the precaution model about $2\%$. Using
+net bond purchases as the dependent variable gives the same verdict (rate $+62$,
+$p\approx0.03$); there uncertainty even looks significant \emph{on its own}
+($+43$, $p\approx0.02$) but collapses to zero once the rate is included --- a
+textbook confounder, with uncertainty merely standing in for rates.
+
+\begin{table}[htbp]\centering
+\caption{The composition tilt, explained: a horse race (annual, 2002--2025).
+Dependent variable: net flow into locked-for-yield minus instant-access
+(EUR bn/yr). Drivers standardised to $z$-scores, so each coefficient is EUR bn per
+one-standard-deviation move. HC3 robust standard errors in parentheses.}
+\label{tab:compecon}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & \multicolumn{3}{c}{\emph{Dependent variable:} composition tilt}\\
+\cmidrule(lr){2-4}
+ & (1) rates$+$infl & (2) precaution & (3) all\\
+\midrule
+ECB rate          & $278.3^{**}$ &            & $303.6^{**}$\\
+                  & $(123.3)$    &            & $(125.6)$\\
+Inflation         & $160.9$      &            & $193.5$\\
+                  & $(231.0)$    &            & $(194.9)$\\
+Uncertainty (GPR) &              & $103.3$    & $-95.5$\\
+                  &              & $(65.6)$   & $(83.9)$\\
+Constant          & $-123.5^{*}$ & $-123.5$   & $-123.5^{*}$\\
+                  & $(70.9)$     & $(88.6)$   & $(66.7)$\\
+\midrule
+$N$               & 24    & 24   & 24\\
+$R^2$             & 0.76  & 0.06 & 0.80\\
+Adjusted $R^2$    & 0.74  & 0.02 & 0.77\\
+\bottomrule
+\multicolumn{4}{@{}l}{\footnotesize $^{*}\,p<0.1$,\; $^{**}\,p<0.05$,\; $^{***}\,p<0.01$.}\\
+\end{tabular}
+\end{table}
+
+\subsection{Robustness and scope}
+Regressing levels of trending series can manufacture significance, so we
+re-estimate \eqref{eq:tilt} in first differences. The rate coefficient keeps the
+right (positive) sign but loses significance ($p\approx0.13$) on $n=23$ noisy
+annual changes; the \emph{ranking} is unchanged, though --- the rate still
+dominates the fit while uncertainty stays insignificant and wrong-signed. Two
+caveats bound the claim. The
+sample is small ($\sim$24 annual euro-area observations) and the 2023 bond surge
+is a high-leverage point; robust errors and the differenced re-run mitigate but do
+not remove this. And, most important, this test concerns the \emph{composition} of
+saving --- \emph{how} households deployed it --- not the \emph{level} of the saving
+rate: it shows the reallocation of saving is far more likely a reaction to rates
+and inflation than to precaution, but does not by itself explain why the aggregate
+rate rose, which stays overdetermined (Section~\ref{sec:econ}).
+
+% ============================================================================
+\section{Interpretation}\label{sec:interpretation}
+% ============================================================================
+
+Putting the legs together:
+\begin{itemize}
+  \item \textbf{Leg A (time series).} Descriptively strong: saving is elevated
+  and rose alongside uncertainty after 2022 (Fig.~\ref{fig:A_saving_vs_uncertainty}).
+  But once the ECB rate and inflation are controlled for, the formal tests
+  cannot establish a precautionary channel: no long-run relationship (ARDL
+  $F=0.94$), no Granger causality, and a positive-but-insignificant impulse
+  response. The honest conclusion is \emph{co-movement consistent with, but not
+  proof of, precaution.}
+  \item \textbf{Leg B (cross-country).} Suggestive and confounded: the slope of
+  saving-change on energy-shock is positive but noisy, and the level map mostly
+  reflects long-standing North--South habits.
+  \item \textbf{Leg C (distribution).} The clearest structural fact: the bottom
+  quintile dissaves and the top saves, so any aggregate rise is concentrated
+  among households with slack---while lower-income households report the most
+  fear. The same uncertainty produces a bigger buffer at the top and forgone
+  consumption at the bottom.
+\end{itemize}
+The overall verdict is intentionally measured: the precautionary story is
+\emph{plausible and consistent with the data}, but the time-series evidence is
+not strong enough to claim a clean causal channel---which is why the descriptive
+charts and the econometrics are presented together rather than one standing in
+for the other. On the narrower question of \emph{how} households saved, however,
+the evidence is sharper: the follow-the-money test (Section~\ref{sec:followmoney})
+finds the post-2022 reallocation toward yield is far more likely a reaction to
+rates and inflation than to precaution --- a statement the level data alone cannot
+support.
+
+% ============================================================================
+\section{Limitations and caveats}\label{sec:limits}
+% ============================================================================
+\begin{itemize}
+  \item \textbf{Power.} The aligned sample is short ($\sim$101 quarters) and
+  contains a large COVID structural break; time-series tests on such samples have
+  low power, so null results are weak evidence of absence.
+  \item \textbf{Identification.} The IRF rests on a recursive (Cholesky)
+  ordering; a different ordering or a sign-restriction scheme could shift the
+  point estimates (though the wide bands suggest not the significance).
+  \item \textbf{Proxies.} Uncertainty is latent; GPR and EPU are imperfect,
+  newspaper-based measures.
+  \item \textbf{Gross vs.\ net saving.} The headline target is the \emph{gross}
+  household saving rate; cross-source comparisons should note this.
+  \item \textbf{Distributional timeliness.} ICW is experimental and only
+  $\sim$5-yearly; it shows structure, not the post-2022 dynamics. The OECD annual
+  panel that would show year-by-year movement is not currently retrievable from
+  the queried flow.
+  \item \textbf{Editorial exposure grouping.} The red/blue Russia-energy split in
+  leg~B is a simplification; the continuous energy-inflation axis is the rigorous
+  version.
+  \item \textbf{Composition vs.\ level.} The follow-the-money test
+  (Section~\ref{sec:followmoney}) speaks to \emph{how} saving was allocated, not
+  \emph{why} the aggregate rate rose, and rests on $\sim$24 annual observations
+  with a high-leverage 2023.
+  \item \textbf{Vintages.} All series are pulled live and revised by providers;
+  regenerate before citing any number.
+\end{itemize}
+
+% ============================================================================
+
+\clearpage
+\part{Feedback extension: liquidity ladder, money, risk premia, forward-looking caution}
+
+\section{The question, revisited}\label{fbsec:question}
+% ============================================================================
+
+\paragraph{Where the main project left off.} The project tests whether the euro
+area's elevated household saving rate is \emph{substantially precautionary} ---
+a response to uncertainty rather than to income, wealth, or the interest rate
+alone. The time-series leg was supportive; the cross-country and formal
+identification legs were inconclusive. The sharpest negative result came from
+the ``follow-the-money'' extension: after 2022 the share of saving going into
+instant-access cash collapsed while money flowed into bonds and term deposits.
+Read through a binary --- \emph{instant-access cash $=$ precautionary},
+\emph{bonds and term deposits $=$ yield-chasing} --- this looked like evidence
+\emph{against} precaution.
+
+\paragraph{The feedback.} The supervisors' objection targets exactly that
+binary. Many assets can be sold fast, so cash and deposits are not the only
+precautionary store of value; we should look harder at each asset type and at
+the money supply, \emph{divided by term}; examine risk premia and whether they
+rise with geopolitical tension; adopt a more forward-looking approach; and
+discuss the risk of holding too little cash to absorb rising energy prices ---
+in short, \emph{when} households save, \emph{where}, and how \emph{liquid} those
+holdings are.
+
+\paragraph{The organising reframe.} A bond, a listed share, or a money-market
+fund unit is sellable in days. Treating it as ``locked'' understates the
+precautionary buffer. We therefore replace the binary with a four-rung
+liquidity / maturity ladder (Table~\ref{fbtab:ladder}); we divide finer where the
+data allow --- debt securities are split \emph{by term}, short-term (F31) into
+near-money and long-term (F32) into the marketable tier --- and recompute the
+composition of saving on it. The monetary aggregates are the central bank's own
+liquidity-by-term tiering of the money-holding sector's claims, so they are the
+natural macro counterpart. The remaining sections add the risk-premium,
+forward-looking, and energy dimensions, and Section~\ref{fbsec:synthesis} states
+what all of this implies for the precautionary question.
+
+% ============================================================================
+\section{Data and method}\label{fbsec:data}
+% ============================================================================
+
+Every script is standalone, reuses the shared helpers in \code{\_common.py}
+(lifted from the main project's modules), and pulls only free, keyless data,
+writing figures to \code{figures/} and a report plus CSVs to \code{data/}.
+Table~\ref{fbtab:data} lists the additional series. Two helpers are new: a
+generalised \code{household\_instruments()} that runs the \emph{same} tier
+classification on flows (\dataset{nasa\_10\_f\_tr}) and on stocks
+(\dataset{nasa\_10\_f\_bs}); and \code{ecb\_sdmx()}, a keyless pull from the ECB
+Data Portal for the monetary aggregates.
+
+\begin{table}[htbp]\centering\small
+\caption{The liquidity / maturity ladder (ESA 2010 instrument codes).}
+\label{fbtab:ladder}
+\begin{tabular}{@{}p{3.4cm}p{5.4cm}p{6.0cm}@{}}
+\toprule
+\textbf{Tier} & \textbf{Instruments} & \textbf{Rationale} \\
+\midrule
+T1 --- instant ($\approx M1$) & F21 currency, F22 overnight deposits &
+  settle immediately, no price risk \\
+T2 --- near-money ($\approx M2/M3$) & F29 other deposits (term \& redeemable at
+  notice), F521 MMF shares, \textbf{F31 short-term debt securities} &
+  accessible at short notice / maturity, little duration risk \\
+T3 --- marketable & \textbf{F32 long-term debt securities}, F511 listed shares,
+  F522 non-MMF investment-fund shares &
+  sellable within days at market price (duration / price risk) \\
+T4 --- illiquid / contractual & F512, F519 unlisted \& other equity; F6
+  insurance, pension \& guarantee schemes &
+  locked, contractual, or with no ready secondary market \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]\centering\small
+\caption{Additional data series (all free / keyless).}
+\label{fbtab:data}
+\begin{tabular}{@{}p{4.6cm}p{5.0cm}p{5.2cm}@{}}
+\toprule
+\textbf{Series} & \textbf{Source} & \textbf{Used in} \\
+\midrule
+Household financial balance sheet (stocks) & Eurostat \dataset{nasa\_10\_f\_bs} &
+  \S\ref{fbsec:ladder} \\
+Household financial transactions (flows) & Eurostat \dataset{nasa\_10\_f\_tr} &
+  \S\ref{fbsec:ladder} \\
+Monetary aggregates $M1,M2,M3$ & ECB Data Portal (\dataset{BSI}); FRED fallback &
+  \S\ref{fbsec:money} \\
+Euro high-yield credit spread (OAS) & FRED \code{BAMLHE00EHYIOAS} &
+  \S\ref{fbsec:premia} \\
+Italy \& Germany 10y yields & FRED \code{IRLTLT01ITM156N}, \code{IRLTLT01DEM156N} &
+  \S\ref{fbsec:premia} \\
+Implied equity volatility (VIX) & FRED \code{VIXCLS} &
+  \S\ref{fbsec:premia}, \S\ref{fbsec:fwd} \\
+Consumer survey (saving, unemployment) & Eurostat \dataset{ei\_bsco\_m} &
+  \S\ref{fbsec:fwd} \\
+Energy HICP & Eurostat \dataset{prc\_hicp\_midx} / \dataset{manr} (NRG) &
+  \S\ref{fbsec:energy} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A guard worth stating up front: Eurostat does not always publish the F5
+sub-instruments (F511/F512/F519/F521/F522). The classifier auto-detects what is
+present and falls back \emph{conservatively} --- an un-splittable equity/funds
+block is assigned to the illiquid tier T4 --- so every ``broad-liquid'' figure
+below is a \emph{lower bound}. We never overstate liquidity. In the run reported
+here the MMF split (F521) was unavailable, so fund shares enter T3 whole.
+
+% ============================================================================
+\section{The liquidity ladder}\label{fbsec:ladder}
+% ============================================================================
+
+\paragraph{Stocks: what households hold.} Re-ranking the household financial
+balance sheet (Figure~\ref{fig:G_liquidity_ladder_stocks},
+Table~\ref{fbtab:stocks}), instant cash (T1) is only about a fifth of financial
+wealth, but the \emph{broad sellable-fast} share (T1$+$T2$+$T3) is around
+\emph{half}. The remainder (T4 $\approx 47\%$) is dominated by insurance and
+pension claims and by unlisted business equity --- genuinely illiquid. The point
+the feedback asked for is immediate: the mobilisable buffer is far larger than
+cash.
+
+\fig{0.92}{G_liquidity_ladder_stocks}{Euro-area household financial wealth by
+liquidity tier (stocks, \dataset{nasa\_10\_f\_bs}). Only $\sim18\%$ is instant
+cash (T1); the dashed line --- the broad sellable-fast share T1$+$T2$+$T3 --- sits
+near $50\%$.}
+
+\begin{table}[htbp]\centering\small
+\caption{Stock shares of household financial wealth (\%), pre- vs post-shock
+averages.}\label{fbtab:stocks}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & 2015--19 & 2022+ & change (pp) \\
+\midrule
+T1 instant (cash, overnight)        & 17.2 & 19.2 & $+1.9$ \\
+T2 near-money (term/notice, MMF)    & 14.5 & 13.0 & $-1.5$ \\
+T3 marketable (bonds, shares, funds)& 15.8 & 17.6 & $+1.9$ \\
+T4 illiquid (unlisted eq., ins./pension) & 49.1 & 46.8 & $-2.3$ \\
+\midrule
+\emph{narrow cash (T1)}             & 17.2 & 19.2 & $+1.9$ \\
+\emph{broad sellable-fast (T1$+$T2$+$T3)} & 47.5 & 49.8 & $+2.3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Flows: where the marginal saving went.} The reframe is starkest in
+the flows (Figure~\ref{fig:G2_liquidity_ladder_flows}, Table~\ref{fbtab:flows}). The
+share of yearly financial saving going into instant cash did collapse, from
+$66\%$ (2015--19) to $2\%$ (2022+) --- the headline of the old binary. But the
+\emph{broad sellable-fast} share \emph{rose}, from $54\%$ to $73\%$: the money
+left cash and went into term deposits, money-market funds, bonds and listed
+shares, every one of which can be sold within days. On the ladder this is not
+``leaving the precautionary buffer''; it is holding the buffer in a
+higher-yielding but still-liquid form once positive rates made cash costly to
+hold.
+
+\fig{0.92}{G2_liquidity_ladder_flows}{Euro-area household net financial flows by
+liquidity tier (\dataset{nasa\_10\_f\_tr}). The instant-cash line collapses after
+2022 while the marketable tier (T3) surges --- a move \emph{within} the liquid
+part of the ladder.}
+
+\begin{table}[htbp]\centering\small
+\caption{Flow shares of yearly financial saving (\%), pre- vs post-shock
+averages. (Net-flow shares can exceed 100\% or go negative; read the levels in
+Figure~\ref{fig:G2_liquidity_ladder_flows} alongside.)}\label{fbtab:flows}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & 2015--19 & 2022+ & change (pp) \\
+\midrule
+T1 instant (cash, overnight)        & 66.2 & 2.3 & $-63.9$ \\
+T2 near-money (term/notice, MMF)    & $-10.7$ & 33.4 & $+44.2$ \\
+T3 marketable (bonds, shares, funds)& $-1.0$ & 37.4 & $+38.4$ \\
+T4 illiquid (unlisted eq., ins./pension) & 43.0 & 20.7 & $-22.3$ \\
+\midrule
+\emph{narrow cash (T1)}             & 66.2 & 2.3 & $-63.9$ \\
+\emph{broad sellable-fast (T1$+$T2$+$T3)} & 54.4 & 73.0 & $+18.6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This is the single most important result for the precautionary question: it
+removes the strongest piece of evidence \emph{against} the hypothesis. ``Out of
+cash'' is not ``out of the buffer.'' It does not, by itself, \emph{prove} the
+motive is precaution --- staying liquid is consistent with precaution, not proof
+of it --- but it restores precaution as a live reading after the binary had
+seemingly ruled it out.
+
+% ============================================================================
+\section{Money supply, divided by term}\label{fbsec:money}
+% ============================================================================
+
+The monetary aggregates tell the same story at the macro level
+(Figure~\ref{fig:H2_money_supply_by_term}, Table~\ref{fbtab:money}). As the ECB
+raised rates, money migrated \emph{out of} instant overnight balances ($M1$ fell
+by about EUR\,1.2tn between 2022 and 2024) and \emph{into} term and notice
+deposits ($M2-M1$ rose from EUR\,3.4tn to EUR\,4.9tn) and marketable near-money
+($M3-M2$: MMF shares, repo, short debt). Broad money ($M3$) kept growing and
+co-moves with the household saving rate (annual correlation $+0.27$). Money
+itself is tiered by term, and the buffer is not just $M1$ cash.
+
+\fig{0.86}{H2_money_supply_by_term}{Euro-area money supply decomposed by term:
+$M1$ (instant), $M2-M1$ (term/notice deposits), $M3-M2$ (marketable). The
+post-2022 widening of the $M2-M1$ band as $M1$ dips is the term shift.}
+
+\begin{table}[htbp]\centering\small
+\caption{Euro-area money supply by term (EUR\,bn, annual mean; ECB
+\dataset{BSI}).}\label{fbtab:money}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+year & $M1$ instant & $M2-M1$ term/notice & $M3-M2$ marketable & $M3$ \\
+\midrule
+2019 &  8{,}659 & 3{,}447 &   640 & 12{,}745 \\
+2021 & 10{,}846 & 3{,}434 &   766 & 15{,}045 \\
+2022 & 11{,}556 & 3{,}604 &   776 & 15{,}936 \\
+2023 & 10{,}720 & 4{,}391 &   900 & 16{,}011 \\
+2024 & 10{,}351 & 4{,}938 & 1{,}096 & 16{,}384 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Honest reading.} The $M1\!\rightarrow\!$ term migration is exactly
+what rising rates predict on their own, so this corroborates ``the buffer
+relocated, it did not disappear'' but cannot by itself separate precaution from
+intertemporal substitution.
+
+% ============================================================================
+\section{Risk premia and geopolitical tension}\label{fbsec:premia}
+% ============================================================================
+
+The feedback asked whether risk premia rise with geopolitical tension, and
+whether we can observe it. Three euro-area premia are free, observable, and can
+be set against the Geopolitical Risk (GPR) index the project already pulls: the
+\emph{credit} premium (euro high-yield option-adjusted spread); the
+\emph{sovereign / fragmentation} premium (the Italy--Germany 10-year spread, the
+cleanest euro-area gauge); and \emph{risk aversion} (the VIX, with VSTOXX as the
+euro analogue). The script overlays each on GPR, reports the co-movement in
+levels and monthly changes, and event-windows the February 2022 invasion.
+
+\fig{0.92}{I_risk_premia_vs_gpr}{Euro-area credit and sovereign spreads (top) and
+VIX (bottom) against the GPR index. Premia rise and jump with geopolitical
+tension.}
+
+\paragraph{Status.} The figure shows the \emph{sovereign} (Italy--Germany) spread,
+pulled from the ECB Data Portal --- a fallback that renders this gauge even when
+FRED is unreachable. The BTP--Bund spread jumped about $+0.6$\,pp at the February
+2022 invasion; over the full sample its \emph{level} correlation with GPR is muted
+because the 2011--12 euro debt crisis dominates the series, so the event-window
+jump is the cleaner read. Running \code{python3 risk\_premia.py} with FRED access
+adds the credit spread (euro high-yield OAS) and the VIX, which show clear positive
+GPR co-movement and Feb-2022 jumps. Either way the point holds: geopolitical
+tension is observably priced --- an \emph{enabling} fact (the uncertainty is real
+and measurable in markets) rather than direct evidence on the household saving
+motive.
+
+% ============================================================================
+\section{A forward-looking lens}\label{fbsec:fwd}
+% ============================================================================
+
+The core analysis relates the \emph{realised} saving rate to
+\emph{contemporaneous} uncertainty. A forward-looking version asks whether what
+households and markets \emph{expect} carries information about saving. We build a
+caution composite from variables that are, by construction, about the future ---
+expected unemployment and intended saving (Eurostat \dataset{ei\_bsco\_m}), and
+implied volatility (VIX) when FRED is reachable --- as the mean of their
+$z$-scores, and test it against the realised saving rate
+(Figures~\ref{fig:J_forward_looking_composite}--\ref{fig:J2_forward_looking_leadlag}).
+
+\fig{0.86}{J_forward_looking_composite}{The forward-looking caution composite
+($z$) against the realised saving rate ($z$).}
+
+\fig{0.62}{J2_forward_looking_leadlag}{Lead--lag correlation
+$\mathrm{corr}(\text{saving}_t,\ \text{composite}_{t-k})$; $k>0$ means the
+composite leads.}
+
+\paragraph{Result.} A one-quarter-ahead regression,
+$\text{saving}_t = \alpha + \beta\,\text{composite}_{t-1}$, gives $\beta=+1.88$
+($p<0.001$, $R^2=0.38$, $n=107$), whereas the \emph{contemporaneous} GPR
+benchmark explains essentially nothing ($R^2\approx0.00$). Two honest caveats.
+First, the lead--lag correlation peaks \emph{contemporaneously} ($+0.76$ at
+$k=0$), so the right claim is ``an already-observable composite predicts saving
+far better than GPR,'' not ``expectations strongly lead saving.'' Second, the
+composite includes \emph{intended} saving, which is close to the target by
+construction; the cleaner forward signal is \emph{expected unemployment} (and,
+with FRED, the VIX). The substantive implication for the question is a
+refinement: the operative uncertainty looks like households' own perceived
+\emph{income / labour-market} risk, \emph{not} the abstract geopolitical index
+--- GPR barely moves household saving.
+
+% ============================================================================
+\section{Energy prices and the adequacy of cash}\label{fbsec:energy}
+% ============================================================================
+
+A precautionary buffer is only useful if it can cover a \emph{non-deferrable}
+shock; the energy bill is the cleanest example. Two findings
+(Figures~\ref{fig:K2_energy_vs_cash_buffer}--\ref{fig:K_energy_squeeze_by_income}).
+First, the euro-area energy price level rose about $60\%$ above its 2019 level
+and stayed elevated, while the instant-cash share of household wealth did
+\emph{not} rise to meet it (it touched $21.5\%$ in 2022, then fell back to
+$\sim18\%$ by 2024) --- the non-deferrable bill grew as the cash cushion thinned,
+and households were moving \emph{out} of cash (\S\ref{fbsec:ladder}).
+
+\fig{0.86}{K2_energy_vs_cash_buffer}{The euro-area energy price level (left, 2019$=$100)
+against the instant-cash share of household wealth (right).}
+
+Second, the squeeze is \emph{regressive} (Table~\ref{fbtab:energy}): the
+lowest-income quintile spends the largest budget share on energy yet
+\emph{dissaves} (a negative saving rate), while the top quintile saves heavily on
+the smallest energy share. The aggregate ``precautionary buffer'' is therefore a
+top-of-distribution phenomenon, and the households most exposed to an energy
+shock are the least able to self-insure --- they have no buffer to draw on, cash
+or otherwise.
+
+\fig{0.78}{K_energy_squeeze_by_income}{Energy budget share (illustrative) versus
+the saving rate, by income quintile. Highest burden meets the thinnest buffer.}
+
+\begin{table}[htbp]\centering\small
+\caption{Energy burden and saving capacity by income quintile (Q1 $=$ lowest).
+Energy shares are illustrative/stylised --- verify against the Household Budget
+Survey; saving rates are from Eurostat experimental ICW.}\label{fbtab:energy}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+ & Q1 & Q2 & Q3 & Q4 & Q5 \\
+\midrule
+energy share of spending (\%) & 11.0 & 9.5 & 8.0 & 7.0 & 5.5 \\
+saving rate (\%) & $-3.4$ & $+17.6$ & $+26.0$ & $+33.9$ & $+44.2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{A caveat to the reframe.} ``Sellable fast'' is not ``safe to spend
+now.'' Liquidating marketable (T3) assets to pay an energy bill in a stressed,
+high-tension state crystallises losses precisely when those asset prices are
+depressed and risk premia (\S\ref{fbsec:premia}) are elevated. Liquidity in normal
+times is not the same as adequacy in a crisis --- and the most vulnerable
+households cannot do even this.
+
+% ============================================================================
+\section{United States comparison}\label{fbsec:us}
+% ============================================================================
+
+Does the same picture hold across the Atlantic? We rebuild the liquidity ladder
+for US households from the Federal Reserve Financial Accounts (Z.1) and set it
+against the euro area (Figure~\ref{fig:L2_us_vs_ea_ladder}), and contrast the saving
+rates (Figure~\ref{fig:L_us_vs_ea_saving}). The expected contrast: US households
+hold far \emph{less} in cash and deposits (T1/T2) and far \emph{more} in
+marketable equities and investment-fund shares (T3) than euro-area households.
+Their precautionary buffer is therefore even more ``sellable-fast'' --- but also
+more exposed to \emph{market price risk}, which sharpens the
+Section~\ref{fbsec:energy} caveat: a buffer held in equities can fall in value
+exactly when it is needed. The US personal saving rate is also structurally lower
+and more volatile than the euro-area household rate.
+
+\fig{0.84}{L2_us_vs_ea_ladder}{Household financial wealth by liquidity tier, US vs
+euro area (stocks, latest). US: Fed Z.1 (households \& nonprofits); EA: Eurostat.}
+
+\fig{0.84}{L_us_vs_ea_saving}{Saving rates: US (personal, \emph{net}) vs euro area
+(household, \emph{gross}) --- compare the dynamics, not the levels.}
+
+\paragraph{Status.} The US household ladder (Figure~\ref{fig:L2_us_vs_ea_ladder}) is
+built from the \textbf{OECD} financial accounts (sector S1M households, the same
+ESA instrument codes as the euro area, Fed Z.1 basis), so it renders \emph{without}
+FRED. The saving figure (Figure~\ref{fig:L_us_vs_ea_saving}) always shows the
+euro-area line and adds the US personal saving rate (FRED \code{PSAVERT}) where
+reachable. Shares are taken against \emph{total} financial assets. Live US result:
+only ${\sim}4\%$ of US household wealth is instant cash vs ${\sim}18\%$ in the euro
+area, while the marketable tier (T3, equities \& funds) is ${\sim}46\%$ vs
+${\sim}19\%$ --- the US buffer is more sellable-fast but far more exposed to market
+price risk.
+
+% ============================================================================
+\section{What this says about the question}\label{fbsec:synthesis}
+% ============================================================================
+
+\begin{enumerate}[label=\arabic*.]
+  \item \textbf{The false binary dissolves.} The post-2022 saving is best read as
+  a \emph{liquid precautionary buffer that also earns yield}. The
+  ``precaution versus yield-chasing'' dichotomy was an artefact of treating only
+  cash as liquid; on the ladder the broad sellable-fast share of saving flows
+  \emph{rose} (54\%\,$\to$\,73\%), and about half of household wealth is sellable
+  within days (\S\ref{fbsec:ladder}, \S\ref{fbsec:money}).
+  \item \textbf{The operative uncertainty is income fear, not geopolitics.}
+  Households' forward-looking expectations predict the saving rate
+  ($R^2\approx0.38$ one quarter ahead) while the geopolitical index does not
+  ($R^2\approx0$) --- so the precautionary channel runs through perceived
+  job/income risk (\S\ref{fbsec:fwd}). Risk premia confirm that tension is priced
+  (\S\ref{fbsec:premia}), but that is an enabling fact, not the household motive.
+  \item \textbf{The buffer is unevenly held.} The aggregate masks that the most
+  energy-exposed, most income-fearful households have no cushion at all
+  (\S\ref{fbsec:energy}).
+\end{enumerate}
+
+The verdict therefore moves from the presented version's cautious ``probably
+yield-chasing'' to a sharper and better-defended statement: \emph{a liquid
+precautionary buffer, optimised for yield once rates turned positive, driven more
+by income fear than by geopolitics, and concentrated among the households who can
+afford it.}
+
+% ============================================================================
+\section{Limitations}\label{fbsec:limits}
+% ============================================================================
+\begin{itemize}
+  \item \textbf{Correlation, not causation.} Rates, inflation, and uncertainty
+  all moved together after 2022; none of these descriptive results isolates the
+  precautionary channel, and the main project's formal cross-country/IRF tests
+  still return nulls.
+  \item \textbf{Rate-consistency.} The money-supply term shift (\S\ref{fbsec:money})
+  is equally consistent with a pure interest-rate story.
+  \item \textbf{Mechanical component.} Part of the forward-looking $R^2$ reflects
+  that the composite includes intended saving (\S\ref{fbsec:fwd}).
+  \item \textbf{Lower-bound liquidity.} Where Eurostat does not split F5, the
+  equity/funds block is treated as illiquid, so the broad-liquid shares are lower
+  bounds (\S\ref{fbsec:data}).
+  \item \textbf{Illustrative energy shares.} The by-income energy budget shares
+  are stylised and should be verified against the Household Budget Survey.
+  \item \textbf{Pending data.} Everything renders from free, non-FRED sources
+  except two lines: the US \emph{saving-rate} line and the credit/VIX series in the
+  risk-premia figure, which fill in with FRED (the US ladder uses OECD; the
+  sovereign spread uses the ECB fallback). All series are pulled live and revised
+  --- regenerate before citing.
+\end{itemize}
+
+
+\clearpage
+\part{Descriptive extension: the European saving picture}
+
+\section{Why descriptive, and what these pictures show}\label{dssec:intro}
+% ============================================================================
+The companion \code{../extension\_feedback/} folder asks \emph{why} the saving
+rate is high (a precautionary, liquidity-tiered reading). The supervisors asked
+to step back first and describe the phenomenon. This note does that with six
+self-contained charts, each a standalone script reusing the project helpers and
+the house style (shaded COVID / energy-hiking bands, a dashed Feb-2022 line,
+direct annotations, an italic footnote). It motivates, rather than tests, the
+hypothesis work.
+
+% ============================================================================
+\section{Structural or cyclical?}\label{dssec:struct}
+% ============================================================================
+Is the elevated rate a new \emph{norm} or a \emph{cycle} that should revert? A
+Hodrick--Prescott filter ($\lambda=1600$) splits the saving rate into a slow trend
+(structural) and a cycle (Figure~\ref{fig:O2_structural_vs_cyclical}). Because the
+2020--21 COVID spike was \emph{forced} saving --- households simply could not spend,
+not a behavioural change --- those quarters are \textbf{excluded from the filter}
+(interpolated) so they do not distort the trend; the cycle is then the real deviation
+from that de-COVID trend, so the spike shows up (correctly) as a large positive
+\emph{cycle}. On that basis the structural trend \textbf{steps up about $2.6$ pp},
+from $12.5\%$ (2012--19) to $15.1\%$ today, while the latest cycle is essentially
+\emph{zero}. So the persistence is now \textbf{mostly structural}: a higher norm,
+consistent with saving more for old age as pension promises weaken, rather than a
+transient bump.
+
+\fig{0.92}{O2_structural_vs_cyclical}{The euro-area saving rate split into a structural
+trend (HP, $\lambda=1600$, with the 2020--21 COVID quarters excluded from the filter)
+and a cyclical component; the lower panel shows the cycle against cyclical drivers
+(ECB rate, inflation, GPR), $z$-scored.}
+
+% ============================================================================
+\section{The European map}\label{dssec:map}
+% ============================================================================
+Where is saving high? A choropleth of the gross household saving rate by country
+(Figure~\ref{fig:O3_europe_saving_map}): \textbf{Germany ${\sim}20\%$ and France
+${\sim}18\%$}, the Nordics high; \textbf{Italy ${\sim}11\%$, Spain ${\sim}13\%$},
+and \textbf{Greece dissaving}. The North--South gap is \emph{structural and
+long-standing} --- it predates the energy shock --- so a raw "who saves most" map
+mostly reflects habits, not the recent crisis.
+
+\fig{0.78}{O3_europe_saving_map}{Gross household saving rate by country, 2024 --- the
+latest year with full coverage (2025 is still incomplete); Eurostat \dataset{tec00131}
+with GISCO boundaries. North dark, South light; a ranked list gives every value.}
+
+The time dimension confirms the pattern (Figure~\ref{fig:O_saving_rate_evolution}): the
+country ranking is sticky --- the North has saved roughly $8$--$12$ pp more than the
+South for two decades --- and the post-2022 lift raised most countries together rather
+than re-ordering them.
+
+\fig{0.92}{O_saving_rate_evolution}{Household saving rates over time: all 21 countries
+(grey), with highlighted North (cool) and South (warm) economies and the euro-area
+average (black dotted); Eurostat \dataset{tec00131}.}
+
+% ============================================================================
+\section{Spending: goods vs services}\label{dssec:goods}
+% ============================================================================
+If saving is so high, how has services spending stayed so strong? It is not a paradox
+once goods and services are split (Figure~\ref{fig:O4_goods_vs_services}). A high saving
+rate just means households spend a smaller \emph{share} of income; \emph{within} that
+spending the mix rotated. In the 2020 lockdowns \textbf{goods} boomed (durables,
+electronics) while \textbf{services} collapsed; after reopening \textbf{services
+rebounded} strongly (to ${\sim}107$, 2019$=$100) while \textbf{goods demand faded}
+(${\sim}103$). So "elevated services spending" is the post-COVID services recovery
+(plus high services inflation), not a consumer boom --- and the goods weakness is part
+of why \emph{overall} consumption, and hence the saving rate, stayed high. Strong
+services and high saving are reconciled by \textbf{weak goods}, not in tension.
+
+\fig{0.86}{O4_goods_vs_services}{Real household consumption of goods vs services
+(2019$=$100, recent years) against the saving rate; Eurostat \dataset{nama\_10\_fcs}.}
+
+% ============================================================================
+\section{What households save in, and how it evolved}\label{dssec:compose}
+% ============================================================================
+This is the \emph{same} household balance sheet as the liquidity ladder, cut by
+\emph{risk} rather than liquidity (Figure~\ref{fig:O5_saving_composition_evolution}). The
+\textbf{risky share (equity \& investment-fund shares, F5) rose about $+8$ pp over the
+decade, $29\%\to37\%$}, while \textbf{non-risky deposits (F2) held near $31\%$}. Equity
+\& funds \textbf{overtook deposits around 2021} and are now the largest single
+instrument, though deposits and insurance/pension claims (non-risky) still dominate
+combined. So the non-risky base is still large, but \textbf{equity involvement has
+clearly grown} --- more euro-area households now carry market exposure. The
+cross-country snapshot (Figure~\ref{fig:O7_risky_share_by_country}) shows the risky share
+is higher in the core/North and lower in the South.
+
+\fig{0.86}{O5_saving_composition_evolution}{Household financial assets by RISK over time:
+non-risky deposits (F2), risky equity \& funds (F5), and insurance \& pensions;
+Eurostat \dataset{nasa\_10\_f\_bs}. Risky overtook non-risky around 2021.}
+
+\fig{0.74}{O7_risky_share_by_country}{Risky (equity \& investment-fund) share of
+household financial assets, by country (latest).}
+
+% ============================================================================
+\section{Demographics and pensions}\label{dssec:demo}
+% ============================================================================
+Do aging and pension design move household saving? Two cross-country scatters
+(Figure~\ref{fig:O6_demographics_pensions}). \emph{(a)} The old-age dependency ratio
+is, if anything, \emph{weakly negatively} related to the saving rate
+($r\approx-0.14$): older Southern economies save \emph{less}, not more, so aging
+does not mechanically lift saving. \emph{(b)} A funded-pension proxy --- the
+insurance \& pension share of household assets (F6), high where households
+actually \emph{hold} pension assets and low under pay-as-you-go state promises ---
+is \emph{weakly positively} related to saving ($r\approx+0.34$): big funded systems
+(Netherlands, Denmark) coexist with solid saving, not low saving. So "good pensions
+$\Rightarrow$ less private saving" is not clear in the cross-section --- pensions
+shape \emph{where} wealth sits (funded systems hold more in F6/F5) more than
+\emph{how much} is saved.
+
+\fig{0.96}{O6_demographics_pensions}{Cross-country: old-age dependency vs the saving
+rate (left) and the funded-pension proxy (F6 share) vs the saving rate (right),
+latest year; Eurostat \dataset{demo\_pjanind}, \dataset{tec00131},
+\dataset{nasa\_10\_f\_bs}.}
+
+% ============================================================================
+\section{Why Europeans look like cautious savers}\label{dssec:caution}
+% ============================================================================
+The clearest US--Europe difference is not how \emph{much} households save but
+\emph{how} they hold it (Figure~\ref{fig:L3_us_vs_ea_caution}). US households hold
+about \textbf{57\%} of their financial wealth in equity \& investment funds versus
+\textbf{${\sim}37\%$} in the euro area --- roughly $1.5\times$ --- with the mirror
+image in deposits (US ${\sim}11\%$ vs euro area ${\sim}31\%$). The gap is large and
+\emph{persistent} across the last two decades. The institutional history behind it:
+the US built a funded, equity-heavy private-pension system (401(k)/IRA) and an
+equity-investing culture, while much of continental Europe leaned on
+\emph{pay-as-you-go state pensions} and a bank-deposit culture. European households
+therefore carry less market risk and look more "cautious" --- a structural,
+pension-rooted difference, not merely preferences.
+
+\fig{0.86}{L3_us_vs_ea_caution}{Risky (equity \& funds, F5) and non-risky (deposits,
+F2) shares of household financial assets, US vs euro area, over time. US: OECD
+financial accounts; euro area: Eurostat \dataset{nasa\_10\_f\_bs}.}
+
+% ============================================================================
+\section{Synthesis}\label{dssec:synth}
+% ============================================================================
+\begin{enumerate}[label=\arabic*.]
+  \item The elevated saving rate is now a \textbf{higher structural norm}, not a
+  passing cycle (\S\ref{dssec:struct}).
+  \item It sits on a \textbf{structural North--South map} that long predates the
+  shock (\S\ref{dssec:map}).
+  \item High saving coexists with \textbf{strong services} via a
+  goods$\rightarrow$services rotation (\S\ref{dssec:goods}).
+  \item Households still hold a large \textbf{non-risky} base, but \textbf{equity
+  involvement has grown} markedly over the decade (\S\ref{dssec:compose}).
+  \item \textbf{Aging and pension design} move household saving only weakly in the
+  cross-section; pensions shape \emph{where} wealth sits more than how much is saved
+  (\S\ref{dssec:demo}).
+  \item Versus the US, euro-area households are not low savers so much as
+  \textbf{cautious holders} --- far less equity, far more cash --- a structural,
+  pension-rooted difference (\S\ref{dssec:caution}).
+\end{enumerate}
+These descriptive facts motivate the hypothesis work in
+\code{../extension\_feedback/}: a precautionary, liquidity-tiered reading of why
+the rate is high and where the money sits. All series are pulled live and revised
+--- regenerate before citing.
+
+
+\clearpage
+\appendix
+\section{Reproduction details}
+% ============================================================================
+
+\subsection{File tree}
+\begin{lstlisting}
+figures/               # ALL charts, one folder, tagged by idea letter A-O
+data/                  # ALL generated data, prefixed with the matching idea letter
+code/                  # analysis scripts, grouped by module:
+  core/                #   A-D  saving vs uncertainty, country, distribution (01/02/03)
+  robustness/          #   E    panel FE, event study, local projections
+  follow_money/        #   F    where the money went (composition tests)
+  feedback/            #   G-N  liquidity ladder, money supply, risk premia,
+                       #        forward-looking, energy, US, reconciliation, consumption
+  descriptive/         #   O    structural/cyclical, maps, demographics
+  legacy/              #        superseded original scripts (safe to delete)
+documentation.tex      # this document (core + feedback + descriptive merged)
+findings.md            # narrative write-up of every idea
+series_catalog.md      # verified macro time-series catalogue (liquidity ladder)
+article-ideas.md       # blog-angle working notes
+run_all.sh, requirements.txt   # core pipeline + pinned deps
+NOTE: figures/data now carry an idea-letter prefix (A_, B_, ... O_); scripts moved
+under code/<module>/, so in-script paths may need adjusting before a fresh run.
+\end{lstlisting}
+
+\subsection{Commands}
+\begin{lstlisting}
+# one-shot, fully reproducible
+bash run_all.sh
+
+# or stage by stage (after: pip install -r requirements.txt)
+python 01_collect_data.py
+python 02_make_figures.py
+python 03_econometrics.py            # GPR (default)
+python 03_econometrics.py --proxy epu --substart 2010
+\end{lstlisting}
+
+\subsection{Data dictionary (generated CSVs)}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{5.3cm} p{3.0cm} p{6.0cm}@{}}
+\toprule
+file & frequency & contents \\
+\midrule
+\code{ea\_saving\_rate\_quarterly.csv} & quarterly & date, saving (\% GDI) \\
+\code{gpr.csv} & monthly & date, GPR index \\
+\code{fred\_eu\_epu.csv} & monthly & date, EU EPU index \\
+\code{ecb\_rate.csv} & daily & date, ECB deposit rate (\%) \\
+\code{ea\_inflation.csv} & monthly & date, HICP YoY (\%) \\
+\code{country\_saving\_annual.csv} & annual & geo $\times$ year saving pivot \\
+\code{country\_energy\_peak\_2022.csv} & 2022 scalar & geo, peak energy infl.\ (\%) \\
+\code{scatter\_energy\_vs\_saving.csv} & cross-section & geo, saving rise, energy peak \\
+\code{saving\_rate\_by\_quintile.csv} & snapshot & q, value, geo, year \\
+\code{icw\_quintile\_panel.csv} & snapshots & year, q, value, geo \\
+\code{ces\_unemp\_expectations.csv} & latest & group, expected unemployment (\%) \\
+\code{econometrics\_results.md} & --- & full text log of step 3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vfill
+\noindent\rule{\linewidth}{0.4pt}\\[2pt]
+{\small All numerical results in this document come from a clean end-to-end run
+and are reproducible via \code{run\_all.sh}. Because the underlying series are
+revised by their providers, regenerate the data and re-compile before citing.}
+
+
+\end{document}
