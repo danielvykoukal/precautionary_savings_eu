@@ -349,11 +349,13 @@ energy prices.
 
 *Companion to `savings_reconciliation.py`. All numbers are a live run on the
 euro-area (EA20) household sector (Eurostat `nasa_10_nf_tr` + `nasa_10_f_tr`),
-regenerate before citing. This note is the payoff of the reconciliation: because
-the component data reproduces the **reported** saving rate to 0.005 pp (see
-`findings.md` §6 and `savings_reconciliation_validation.png`), we can decompose the
-rate's *moves* with confidence — both why households saved more, and where the
-money went.*
+regenerate before citing. This note is the payoff of the reconciliation: the saving
+rate is **built bottom-up from the asset types households acquire (deposits,
+securities, equity & fund shares, insurance & pensions) plus housing investment
+minus borrowing**, not from dividing disposable income. That component build
+reproduces the **reported** saving rate to ~0.08 pp (mean abs error 2002–2025; see
+`M4_savings_reconciliation_validation.png`), so we can decompose the rate's *moves*
+with confidence — both why households saved more, and where the money went.*
 
 ## The saving rate, by episode
 
@@ -442,7 +444,7 @@ Real income rose only a few percent, and the pre-COVID relationship would put th
 rate near 12%. The actual ~15% comes from consumption sitting **below** its
 historical link to income — a genuine downward shift that **persists and widens**
 through 2025. That is the structural-precaution signature the project is after
-(`real_consumption_function.png`).
+(`N_real_consumption_function.png`).
 
 *Caveat:* a levels regression on trending data is fragile (treat the MPC/intercept
 as descriptive); and "downward shift" bundles precaution with possible slow COVID-
@@ -470,12 +472,16 @@ wealth effects — it establishes *that* behaviour shifted, not *only* precautio
 | borrowing (net incurrence of liabilities) | 2.8 | 3.8 | **1.9** |
 
 ## Figures
-- `savings_reconciliation_why.png` — saving rate (top) over the uses of saving as
+- `M5_savings_reconciliation_why.png` — saving rate (top) over the uses of saving as
   % of income (bottom), COVID and post-shock episodes shaded.
-- `savings_reconciliation_validation.png` — the build reproduces the reported rate
-  (the licence to do this decomposition at all).
-- `savings_reconciliation_decomposition.png` — the full annual stack netting to the
-  rate; `savings_reconciliation_waterfall.png` — the recent-period bridge.
+- `M4_savings_reconciliation_validation.png` — the component build reproduces the
+  reported rate (the licence to do this decomposition at all).
+- `M2_savings_reconciliation_decomposition.png` — the full annual stack, split by
+  **asset type** (deposits, securities, equity & funds, insurance & pensions) plus
+  housing minus borrowing, netting to the saving-rate line;
+  `M_savings_reconciliation_waterfall.png` — the same build for the recent period.
+- `M3_savings_reconciliation_pieces.png` — housing, borrowing and net financial-asset
+  acquisition over time (EUR bn).
 
 ## Caveats
 - A **statistical discrepancy** (B9 vs B9F, ~1 pp of income) remains between the

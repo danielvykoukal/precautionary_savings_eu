@@ -56,10 +56,10 @@
 % Figures produced by the follow-the-money extension.
 \newcommand{\extfig}[3]{% {width-fraction}{file-without-ext}{caption}
   \begin{figure}[htbp]\centering
-    \IfFileExists{#2.png}
+    \IfFileExists{figures/#2.png}
       {\includegraphics[width=#1\linewidth]{#2}}
       {\fbox{\parbox{0.78\linewidth}{\centering\itshape figure not found ---
-        run \code{extension\_follow\_money/run.sh} to generate it.}}}
+        run the pipeline to generate it.}}}
     \caption{#3}\label{fig:#2}
   \end{figure}}
 

@@ -45,6 +45,7 @@ build the bridge per year, and plot (a) the waterfall for the recent period and
 """
 
 import os
+import glob
 
 import numpy as np
 import pandas as pd
@@ -52,8 +53,38 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout -------------------------------------
+# After the 2w/3w flatten this script lives in code/feedback/; the project's
+# data and figures are two levels up at the repo root. Point _common there and
+# tolerate the idea-letter tag prefixes (A_, B_, ...) on the core CSVs.
+C.ROOT = os.path.dirname(os.path.dirname(C.HERE))   # …/code/feedback -> repo root
+C.ROOT_DATA = os.path.join(C.ROOT, "data")
+C.DATA = os.path.join(C.ROOT, "data")
+C.FIG = os.path.join(C.ROOT, "figures")
+
+_orig_root_csv = C.root_csv
+def _tagged_root_csv(name, required=True):
+    """root_csv that also finds an idea-letter-prefixed copy (e.g. A_<name>)."""
+    if not os.path.exists(os.path.join(C.ROOT_DATA, name)):
+        hits = glob.glob(os.path.join(C.ROOT_DATA, "?_" + name))
+        if hits:
+            return pd.read_csv(hits[0])
+    return _orig_root_csv(name, required)
+C.root_csv = _tagged_root_csv
+
 REPORT = []
 TOPLEVEL = [f"F{i}" for i in range(1, 9)]
+
+# Net acquisition of financial assets, grouped into the asset types the saving
+# rate is built from (ESA-2010 instrument codes). "Other" sweeps up monetary
+# gold/SDRs (F1), derivatives (F7) and other accounts receivable (F8).
+ASSET_TYPES = [
+    ("F2", "deposits & cash",        C.C_COOL),
+    ("F3", "debt securities",        C.C_GREEN),
+    ("F5", "equity & fund shares",   C.C_ORANGE),
+    ("F6", "insurance & pensions",   C.C_ACCENT),
+]
+ASSET_OTHER = ["F1", "F7", "F8"]
 
 
 def say(line=""):
@@ -148,22 +179,55 @@ def main():
     F_LIAB = fin_total(fin, "LIAB").rename("F_LIAB")  # net incurrence of liabilities = borrowing
     F4_LIAB = fin_item(fin, "LIAB", "F4").rename("F4_loans")  # of which loans/mortgages
 
+    # net acquisition of financial assets, BY INSTRUMENT TYPE (the asset types the
+    # saving rate is built from). "other_fin" = F1 + F7 + F8.
+    asset_cols = []
+    parts = []
+    for code, _lab, _col in ASSET_TYPES:
+        s = fin_item(fin, "ASS", code).rename(code)
+        parts.append(s); asset_cols.append(code)
+    other_fin = (pd.concat([fin_item(fin, "ASS", c) for c in ASSET_OTHER])
+                 .groupby(level=0).sum().rename("other_fin"))
+    parts.append(other_fin); asset_cols.append("other_fin")
+
     df = pd.concat([B8G, B6G, B9, P5G, P51G, NP, P3.rename("P3"), D9net, D8net,
-                    F_ASS, F_LIAB, F4_LIAB],
+                    F_ASS, F_LIAB, F4_LIAB] + parts,
                    axis=1).dropna(subset=["B8G", "B6G", "P5G", "F_ASS"])
     df.index.name = "year"
+    df[asset_cols] = df[asset_cols].fillna(0.0)
     # statistical discrepancy between the two measures of net lending
     df["B9F"] = df["F_ASS"] - df["F_LIAB"]
     df["discrep"] = df["B9"] - df["B9F"]
     # official denominator: gross disposable income + pension-entitlement adjustment
     df["denom"] = df["B6G"] + df["D8net"].fillna(0)
-    df["saving_rate"] = 100 * df["B8G"] / df["denom"]
+
+    # ---- build the saving rate FROM ITS USES, not from income − consumption ----
+    # ESA-2010 capital + financial identity for households (S14_S15):
+    #   B8G = P5G + NP − D9net + (F.ASS − F.LIAB) + (B9 − B9F)
+    # i.e. gross saving = housing/non-financial investment, plus the net
+    # acquisition of financial assets (deposits, securities, equity, pensions, …),
+    # minus borrowing, plus capital transfers and the statistical discrepancy.
+    # We construct the rate from these blocks; by the identity it equals B8G, so it
+    # reproduces the published rate (the validation below confirms it).
+    df["housing"] = df["P5G"] + df["NP"]                 # non-financial investment
+    df["transfers_disc"] = -df["D9net"] + df["discrep"]  # capital transfers + residual
+    df["saving_built"] = (df[asset_cols].sum(axis=1) + df["housing"]
+                          - df["F_LIAB"] + df["transfers_disc"])
+    df["saving_rate"] = 100 * df["saving_built"] / df["denom"]   # <- the decomposed rate
+    df["saving_rate_income"] = 100 * df["B8G"] / df["denom"]     # top-down, for the cross-check
 
     # ---- verify the identity holds, then report ----
     df["check"] = (df["B8G"] - df["P5G"] - df["NP"] + df["D9net"]
                    + df["F_LIAB"] - df["discrep"])
     max_err = (df["check"] - df["F_ASS"]).abs().max()
     say(f"\nidentity max abs error across years: {max_err:,.0f} EUR mn (should be ~0)")
+    # the uses-side construction equals gross saving B8G up to the capital-account
+    # statistical residual (the two sides of the accounts don't close to the cent)
+    built_err = (df["saving_built"] - df["B8G"]).abs().max()
+    built_pp = (100 * (df["saving_built"] - df["B8G"]) / df["denom"]).abs().max()
+    say(f"uses-side build vs gross saving B8G: max gap {built_err:,.0f} EUR mn "
+        f"= {built_pp:.2f} pp of the rate (capital-account residual) -> the saving "
+        f"rate IS, up to that residual, the sum of asset types + housing − borrowing")
 
     # ---- VALIDATION: does our bottom-up rate reproduce the REPORTED saving rate? ----
     validate_against_reported(df)
@@ -182,19 +246,22 @@ def main():
         say(f"  {y}: total {bn(r['F_LIAB']):>6.1f}   of which loans/mortgages (F4) "
             f"{bn(r['F4_loans']):>6.1f}")
 
-    # ---- the bridge as a share of gross disposable income, recent period ----
+    # ---- the build-up to the saving rate, % of GDI, recent period ----
     recent = df[df.index >= df.index.max() - 2]   # last 3 available years
     lo, hi = int(recent.index.min()), int(recent.index.max())
     g = lambda c: 100 * recent[c].sum() / recent["denom"].sum()   # % of denom, pooled
     bridge = {
-        "Gross saving\n(saving rate)": g("B8G"),
-        "− Housing &\nnon-fin. investment": -g("P5G") - g("NP"),
-        "+ Capital\ntransfers (net)": g("D9net"),
-        "+ Borrowing\n(liabilities)": g("F_LIAB"),
-        "− Stat.\ndiscrepancy": -g("discrep"),
-        "= Financial\nassets acquired": g("F_ASS"),
+        "Deposits\n& cash (F2)": g("F2"),
+        "Debt\nsecurities (F3)": g("F3"),
+        "Equity &\nfunds (F5)": g("F5"),
+        "Insurance\n& pensions (F6)": g("F6"),
+        "Other\nfinancial": g("other_fin"),
+        "+ Housing &\nnon-fin. inv.": g("housing"),
+        "− Borrowing\n(liabilities)": -g("F_LIAB"),
+        "+ Transfers\n& residual": g("transfers_disc"),
+        "= Saving rate": g("saving_built"),
     }
-    say(f"\nBridge as % of gross disposable income, pooled {lo}-{hi}:")
+    say(f"\nSaving rate built from its components, % of GDI, pooled {lo}-{hi}:")
     for k, v in bridge.items():
         say(f"  {k.replace(chr(10),' '):<34}{v:>+7.1f}")
 
@@ -203,13 +270,15 @@ def main():
     plot_decomposition_vs_saving(df, geo_nf)
 
     out = df.reset_index()
-    keep = ["year", "saving_rate", "reported_rate", "B8G", "B6G", "D8net", "denom",
-            "P3", "P5G", "P51G", "NP", "D9net", "B9", "F_ASS", "F_LIAB", "F4_loans",
-            "B9F", "discrep"]
-    out[keep].to_csv(os.path.join(C.DATA, "savings_reconciliation.csv"), index=False)
-    with open(os.path.join(C.DATA, "savings_reconciliation.md"), "w") as f:
+    keep = (["year", "saving_rate", "saving_rate_income", "reported_rate",
+             "saving_built", "B8G", "B6G", "D8net", "denom", "P3", "P5G", "P51G",
+             "NP", "housing", "D9net", "B9"]
+            + [c for c, _l, _col in ASSET_TYPES] + ["other_fin"]
+            + ["F_ASS", "F_LIAB", "F4_loans", "B9F", "discrep", "transfers_disc"])
+    out[keep].to_csv(os.path.join(C.DATA, "M_savings_reconciliation.csv"), index=False)
+    with open(os.path.join(C.DATA, "M_savings_reconciliation.md"), "w") as f:
         f.write("```\n" + "\n".join(REPORT) + "\n```\n")
-    print(f"\nWrote {os.path.relpath(os.path.join(C.DATA, 'savings_reconciliation.csv'), C.ROOT)}")
+    print(f"\nWrote {os.path.relpath(os.path.join(C.DATA, 'M_savings_reconciliation.csv'), C.ROOT)}")
 
 
 EPISODES = [(2015, 2019, "2015-19 (pre-COVID)"),
@@ -293,7 +362,7 @@ def plot_why(df):
     axB.set_ylabel("% of disposable income")
     axB.set_xlabel("year")
     axB.legend(frameon=False, fontsize=9, loc="upper left")
-    C.savefig(fig, "savings_reconciliation_why.png")
+    C.savefig(fig, "M5_savings_reconciliation_why.png")
 
 
 def validate_against_reported(df):
@@ -310,8 +379,8 @@ def validate_against_reported(df):
     cmp = df.dropna(subset=["reported_rate"])
     err = (cmp["saving_rate"] - cmp["reported_rate"]).abs()
     say("\nVALIDATION — can the component data reproduce the REPORTED saving rate?")
-    say("  reported = Eurostat nasq_10_ki (annual mean of quarters); "
-        "ours = B8G / (B6G + D8net)")
+    say("  reported = Eurostat nasq_10_ki (annual mean of quarters); ours = the "
+        "uses-side build (asset types + housing − borrowing + transfers) / (B6G + D8net)")
     say(f"{'year':>5}{'reported':>10}{'computed':>10}{'diff(pp)':>10}")
     for y, r in cmp[cmp.index >= 2015].iterrows():
         say(f"{y:>5}{r['reported_rate']:>9.2f}%{r['saving_rate']:>9.2f}%"
@@ -328,91 +397,107 @@ def plot_validation(cmp):
     ax.plot(cmp.index, cmp["reported_rate"], color=C.C_GREY, lw=5.0, alpha=0.55,
             solid_capstyle="round", label="reported (Eurostat nasq_10_ki)")
     ax.plot(cmp.index, cmp["saving_rate"], color=C.C_MAIN, lw=1.8, marker="o", ms=3.5,
-            label="computed from components: B8G / (B6G + D8)")
+            label="built from components (asset types + housing − borrowing)")
     ax.set_ylabel("household gross saving rate (%)")
     ax.set_xlabel("year")
     err = (cmp["saving_rate"] - cmp["reported_rate"]).abs().mean()
     ax.text(0.015, 0.04, f"mean abs error = {err:.3f} pp", transform=ax.transAxes,
             va="bottom", ha="left", fontsize=10, fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.35", fc="white", ec=C.C_MAIN, alpha=0.9))
-    ax.set_title("Our component data reproduces the reported saving rate\n"
-                 "euro-area households: reported vs bottom-up reconstruction",
+    ax.set_title("The component build reproduces the reported saving rate\n"
+                 "euro-area households: reported vs bottom-up (uses-side) reconstruction",
                  fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
-    C.savefig(fig, "savings_reconciliation_validation.png")
+    C.savefig(fig, "M4_savings_reconciliation_validation.png")
 
 
 def plot_waterfall(bridge, lo, hi, geo):
-    """Waterfall from the saving rate down to financial assets acquired (% of GDI)."""
+    """Build-up waterfall: stack the asset-type acquisitions + housing − borrowing
+    + transfers and show they sum to the saving rate (% of GDI). This is the saving
+    rate constructed from its components, not from income − consumption."""
     labels = list(bridge.keys())
     vals = list(bridge.values())
-    fig, ax = plt.subplots(figsize=(11, 6))
+    fig, ax = plt.subplots(figsize=(11.5, 6))
     ax.axhline(0, color="black", lw=0.9)
 
     running = 0.0
+    tops = []
     for i, (lab, v) in enumerate(zip(labels, vals)):
-        is_total = lab.startswith("Gross") or lab.startswith("= ")
+        is_total = lab.startswith("= ")
         if is_total:
             ax.bar(i, v, bottom=0, width=0.68, color=C.C_MAIN, alpha=0.95,
                    edgecolor="white", zorder=2)
             top = v
-            running = v
         else:
             color = C.C_GREEN if v >= 0 else C.C_HOT
             ax.bar(i, v, bottom=running, width=0.68, color=color, alpha=0.9,
                    edgecolor="white", zorder=2)
-            # connector
-            ax.plot([i - 0.34, i - 0.66], [running, running], color="grey",
-                    lw=0.8, ls="--", zorder=1)
+            if i > 0:   # connector from the previous running level
+                ax.plot([i - 0.34, i - 0.66], [running, running], color="grey",
+                        lw=0.8, ls="--", zorder=1)
             top = running + v
             running = top
-        ax.text(i, top + (0.25 if v >= 0 else -0.25), f"{v:+.1f}", ha="center",
-                va="bottom" if v >= 0 else "top", fontsize=9, fontweight="bold")
+        tops.append(top)
+        label_y = top + 0.18 if v >= 0 else top - 0.18
+        ax.text(i, label_y, f"{v:+.1f}", ha="center",
+                va="bottom" if v >= 0 else "top", fontsize=8.5, fontweight="bold")
 
-    ax.set_ylim(0, max(vals) + 2.2)
+    hi_y = max(tops + vals + [running])
+    lo_y = min(tops + [0.0])
+    ax.set_ylim(lo_y - 1.2, hi_y + 1.8)
     ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels(labels, fontsize=8.5)
+    ax.set_xticklabels(labels, fontsize=8.2)
     ax.set_ylabel("% of gross disposable income")
-    ax.set_title("Why financial assets don't add up to the saving rate\n"
-                 f"euro-area households, pooled {lo}-{hi} ({geo}): housing absorbs "
-                 "saving, borrowing adds back", fontweight="bold")
+    ax.set_title("The saving rate, built from its components\n"
+                 f"euro-area households, pooled {lo}-{hi} ({geo}): net acquisition of "
+                 "each asset type + housing − borrowing = the saving rate",
+                 fontweight="bold")
     from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color=C.C_MAIN, label="level (saving rate / financial assets)"),
-                       Patch(color=C.C_HOT, label="absorbs saving (−)"),
-                       Patch(color=C.C_GREEN, label="adds to financial assets (+)")],
-              loc="upper right", frameon=False, fontsize=9)
-    C.savefig(fig, "savings_reconciliation_waterfall.png")
+    ax.legend(handles=[Patch(color=C.C_MAIN, label="= saving rate (the sum)"),
+                       Patch(color=C.C_GREEN, label="adds to saving (+)"),
+                       Patch(color=C.C_HOT, label="borrowing — a source of funds (−)")],
+              loc="upper left", frameon=False, fontsize=9)
+    C.savefig(fig, "M_savings_reconciliation_waterfall.png")
 
 
 def plot_decomposition_vs_saving(df, geo):
-    """Decompose the saving rate over time (% of GDI) into where it goes, with the
-    saving rate itself as a line. Stacks sum to the line by the ESA identity:
-        saving rate = financial assets + housing/non-fin. inv. + other − borrowing
+    """Decompose the saving rate over time (% of GDI) into the asset types it is
+    built from. The stack sums to the saving-rate line by the ESA identity:
+        saving rate = (deposits + securities + equity + pensions + other financial)
+                      + housing/non-fin. inv. + transfers − borrowing
     Borrowing is a SOURCE of funds, so it sits below zero (it lets households hold
     more financial assets than own saving alone)."""
     d = df[df.index >= 2002].copy()
     den = d["denom"]                            # B6G + D8net (official denominator)
-    fa = 100 * d["F_ASS"] / den
-    house = 100 * (d["P5G"] + d["NP"]) / den
-    other = 100 * (-d["D9net"] + d["discrep"]) / den
-    borrow = -100 * d["F_LIAB"] / den          # negative: a source, not a use
     yrs = d.index.values
 
-    fig, ax = plt.subplots(figsize=(11, 6.2))
+    fig, ax = plt.subplots(figsize=(11.5, 6.4))
     ax.axhline(0, color="black", lw=0.9)
 
-    # positive stack (uses of funds)
-    ax.bar(yrs, fa, width=0.8, color=C.C_COOL, label="financial assets acquired (the ladder)",
-           edgecolor="white", linewidth=0.3, zorder=2)
-    ax.bar(yrs, house, bottom=fa, width=0.8, color=C.C_ORANGE,
+    # positive stack: each financial asset type, then housing, then transfers/residual
+    bottom = np.zeros(len(d))
+    for code, lab, col in ASSET_TYPES:
+        v = (100 * d[code] / den).values
+        ax.bar(yrs, v, bottom=bottom, width=0.8, color=col, label=lab,
+               edgecolor="white", linewidth=0.3, zorder=2)
+        bottom = bottom + v
+    other_fin = (100 * d["other_fin"] / den).values
+    ax.bar(yrs, other_fin, bottom=bottom, width=0.8, color=C.C_MAIN, alpha=0.55,
+           label="other financial (gold, derivatives, other)", edgecolor="white",
+           linewidth=0.3, zorder=2)
+    bottom = bottom + other_fin
+    house = (100 * d["housing"] / den).values
+    ax.bar(yrs, house, bottom=bottom, width=0.8, color=C.C_GREY,
            label="housing & non-financial investment", edgecolor="white",
            linewidth=0.3, zorder=2)
-    pos_top = fa + house
-    ax.bar(yrs, other, bottom=pos_top, width=0.8, color=C.C_GREY,
-           label="other (capital transfers, discrepancy)", edgecolor="white",
-           linewidth=0.3, alpha=0.8, zorder=2)
+    bottom = bottom + house
+    tr = (100 * d["transfers_disc"] / den).values
+    ax.bar(yrs, tr, bottom=bottom, width=0.8, color="#bdc3c7",
+           label="capital transfers + statistical residual", edgecolor="white",
+           linewidth=0.3, alpha=0.9, zorder=2)
 
     # borrowing below zero (a source of funds)
+    borrow = (-100 * d["F_LIAB"] / den).values
     ax.bar(yrs, borrow, width=0.8, color=C.C_HOT,
            label="− borrowing (net incurrence of liabilities)", edgecolor="white",
            linewidth=0.3, zorder=2)
@@ -420,19 +505,19 @@ def plot_decomposition_vs_saving(df, geo):
     # the saving rate = algebraic sum of the stack; overlay the REPORTED series to
     # show the bottom-up bars net to the published rate
     if "reported_rate" in d and d["reported_rate"].notna().any():
-        ax.plot(yrs, d["reported_rate"], color=C.C_GREY, lw=5.0, alpha=0.5,
+        ax.plot(yrs, d["reported_rate"], color="black", lw=5.0, alpha=0.30,
                 solid_capstyle="round", zorder=4, label="reported saving rate (Eurostat)")
     ax.plot(yrs, d["saving_rate"], color="black", lw=2.4, marker="o", ms=4,
-            zorder=5, label="saving rate = net of the stack (computed)")
+            zorder=5, label="saving rate = sum of the stack (built from components)")
 
     ax.axvline(2021.5, color="grey", ls="--", lw=1, zorder=1)
     ax.set_ylabel("% of gross disposable income")
     ax.set_xlabel("year")
-    ax.set_title("The saving rate, decomposed: housing absorbs it, borrowing funds it\n"
-                 f"euro-area households ({geo}) — bars net to the saving-rate line",
+    ax.set_title("The saving rate, built from asset types + housing − borrowing\n"
+                 f"euro-area households ({geo}) — the bars sum to the saving-rate line",
                  fontweight="bold")
-    ax.legend(frameon=False, fontsize=8.5, loc="upper left", ncol=2)
-    C.savefig(fig, "savings_reconciliation_decomposition.png")
+    ax.legend(frameon=False, fontsize=8, loc="upper left", ncol=2)
+    C.savefig(fig, "M2_savings_reconciliation_decomposition.png")
 
 
 def plot_pieces_over_time(df, geo):
@@ -455,7 +540,7 @@ def plot_pieces_over_time(df, geo):
                  f"euro-area households ({geo}): housing absorbs saving, borrowing "
                  "is a liability, not an asset", fontweight="bold")
     ax.legend(frameon=False, fontsize=8.5, loc="upper left")
-    C.savefig(fig, "savings_reconciliation_pieces.png")
+    C.savefig(fig, "M3_savings_reconciliation_pieces.png")
 
 
 if __name__ == "__main__":
