@@ -641,8 +641,16 @@ expectations, M1/M3 growth, GPR, EPU, ECB rate).
   (2012–2025) beats the random walk by ~12% RMSE and AR(1) by ~35%, but **ex-2020 it
   is neck-and-neck** with the naive benchmarks — the rate is very persistent in calm
   periods.
-- **MFDFM** (`DynamicFactorMQ`, 1 factor): tracks history incl. the COVID spike
-  (in-sample corr 0.68) but the mean-reverting factor under-predicts the elevated
-  2024–25 holdout by ~1.4pp, so the bridge and random walk do better there.
-- **Verdict:** the monthly leads carry real signal, useful mainly in volatile
-  periods; the nowcast is a modest improvement, not a step change.
+- **MFDFM** (`DynamicFactorMQ`, 1 factor, AR(2)) — now in **first differences** and
+  scored as a genuine **1-quarter-ahead real-time** nowcast (each quarter: saving
+  observed through the previous quarter, leads through the current one, target
+  withheld). Differencing removes the earlier mean-reversion bias — the 2024–25
+  plateau is now tracked to **0.29pp** (was ~1.4pp low). But over 2015–2025 it only
+  **matches the random walk** (RMSE 2.11 vs 2.07; −2%, and −11% ex-2020): at a
+  one-quarter horizon the saving rate is so persistent that "no change" is very hard
+  to beat, and the COVID jumps are unpredictable 1-step from these monthly leads.
+- **Verdict:** the monthly leads carry real signal mainly in volatile periods (the
+  bridge beats the random walk there); for the level/short-horizon nowcast of this
+  near-random-walk series they add little over persistence. The level miss in the
+  *first* (levels) version was itself informative — the post-2022 elevation is
+  structural, not something the cyclical leads encode.
