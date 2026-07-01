@@ -81,7 +81,7 @@ def main():
     ax1.set_axisbelow(True)
     ax2.grid(False)
     ax1.axhline(0, color="black", lw=0.9)
-    ax1.axvline(2021.5, color="grey", ls="--", lw=1)
+    ax1.axvline(2022.54, color="grey", ls="--", lw=1)   # ECB's first hike: 27 Jul 2022
 
     for label, (s, color) in series.items():
         ax1.plot(s.index, s.values, color=color, lw=2.2, marker="o", ms=3, label=label)
@@ -97,8 +97,11 @@ def main():
     ax2.set_ylabel("household saving rate (% of disposable income)", color=cm.C_NAVY)
     ax2.tick_params(axis="y", colors=cm.C_NAVY)
 
-    ax1.text(2021.4, ax1.get_ylim()[1] * 0.97, "ECB hiking\nbegins (2022)",
-             fontsize=8, color="grey", va="top", ha="right")
+    ax1.text(2022.65, ax1.get_ylim()[1] * 0.97, "ECB starts\nhiking (Jul 2022)",
+             fontsize=8, color="grey", va="top", ha="left")
+    import matplotlib.ticker as mticker
+    ax1.xaxis.set_major_locator(mticker.MultipleLocator(1))   # every year on the axis
+    ax1.tick_params(axis="x", labelrotation=45, labelsize=8)
 
     h1, l1 = ax1.get_legend_handles_labels()
     ax1.legend(h1 + [sav_line], l1 + ["household saving rate (right)"],

@@ -196,6 +196,11 @@ def chart_A(ea, uncertainty, unc_label, rate=None, inflation=None):
              "precautionary channel — see 03_econometrics.py for the VAR / bounds test.",
              fontsize=7.5, style="italic", color="#555")
 
+    import matplotlib.dates as mdates
+    axB.xaxis.set_major_locator(mdates.YearLocator(1))
+    axB.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    plt.setp(axB.get_xticklabels(), rotation=45, fontsize=8)
+
     fig.savefig(os.path.join(FIG, "A_saving_vs_uncertainty.png"), bbox_inches="tight")
     plt.close(fig)
     print("  saved figures/A_saving_vs_uncertainty.png")

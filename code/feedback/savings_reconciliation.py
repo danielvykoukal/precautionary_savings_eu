@@ -95,6 +95,22 @@ def say(line=""):
     REPORT.append(str(line))
 
 
+INVASION_X = 2022.15   # Russia invades Ukraine, 24 Feb 2022 (numeric-year axis)
+
+
+def _year_ticks(ax):
+    """Show every year on a numeric-year x-axis (rotated)."""
+    import matplotlib.ticker as mticker
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax.tick_params(axis="x", labelrotation=45, labelsize=8)
+
+
+def _invasion_line(ax):
+    ax.axvline(INVASION_X, color="grey", ls="--", lw=1.2, zorder=6)
+    ax.text(INVASION_X + 0.15, ax.get_ylim()[1], "Russia invades\nUkraine (Feb 2022)",
+            fontsize=7.5, color="grey", va="top", ha="left")
+
+
 # ----------------------------------------------------------------------------
 # Non-financial sector accounts (nasa_10_nf_tr): households, euro-area, EUR mn
 # ----------------------------------------------------------------------------
@@ -369,6 +385,7 @@ def plot_why(df):
     axB.set_ylabel("% of disposable income")
     axB.set_xlabel("year")
     axB.legend(frameon=False, fontsize=9, loc="upper left")
+    _year_ticks(axB)
     C.savefig(fig, "M5_savings_reconciliation_why.png")
 
 
@@ -415,6 +432,7 @@ def plot_validation(cmp):
                  "euro-area households: reported vs bottom-up (uses-side) reconstruction",
                  fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
+    _year_ticks(ax)
     C.savefig(fig, "M4_savings_reconciliation_validation.png")
 
 
@@ -525,9 +543,10 @@ def plot_decomposition_vs_saving(df, geo):
     ax.plot(yrs, d["saving_rate"], color="black", lw=2.4, marker="o", ms=4,
             zorder=5, label="saving rate = sum of the stack (built from components)")
 
-    ax.axvline(2021.5, color="grey", ls="--", lw=1, zorder=1)
+    _invasion_line(ax)
     ax.set_ylabel("% of gross disposable income")
     ax.set_xlabel("year")
+    _year_ticks(ax)
     ax.set_title("The saving rate, built from asset types + housing − borrowing\n"
                  f"euro-area households ({geo}) — the bars sum to the saving-rate line",
                  fontweight="bold")
@@ -548,9 +567,10 @@ def plot_pieces_over_time(df, geo):
             marker="o", ms=2.5, label="   of which loans / mortgages (F4)")
     ax.plot(d.index, bn(d["F_ASS"]), color=C.C_COOL, lw=2.4, marker="o", ms=3,
             label="net acquisition of financial assets")
-    ax.axvline(2021.5, color="grey", ls="--", lw=1)
+    _invasion_line(ax)
     ax.set_ylabel("EUR bn / yr")
     ax.set_xlabel("year")
+    _year_ticks(ax)
     ax.set_title("The two pieces missing from the asset ladder\n"
                  f"euro-area households ({geo}): housing absorbs saving, borrowing "
                  "is a liability, not an asset", fontweight="bold")

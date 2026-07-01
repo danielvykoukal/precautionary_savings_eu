@@ -34,7 +34,22 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import glob
 import _common as C
+
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+C.ROOT = os.path.dirname(os.path.dirname(C.HERE))
+C.ROOT_DATA = os.path.join(C.ROOT, "data")
+C.DATA = os.path.join(C.ROOT, "data")
+C.FIG = os.path.join(C.ROOT, "figures")
+_orig_root_csv = C.root_csv
+def _tagged_root_csv(name, required=True):
+    if not os.path.exists(os.path.join(C.ROOT_DATA, name)):
+        hits = glob.glob(os.path.join(C.ROOT_DATA, "?_" + name))
+        if hits:
+            return pd.read_csv(hits[0])
+    return _orig_root_csv(name, required)
+C.root_csv = _tagged_root_csv
 
 REPORT = []
 PRE = (2002, 2019)          # pre-COVID estimation window
@@ -70,9 +85,11 @@ def main():
     say("# Real terms — is the higher saving rate just 'more income'? (consumption fn)")
     say("#" * 74)
 
-    src = os.path.join(C.DATA, "savings_reconciliation.csv")
+    src = os.path.join(C.DATA, "M_savings_reconciliation.csv")
     if not os.path.exists(src):
-        raise SystemExit("Missing data/savings_reconciliation.csv — run "
+        src = os.path.join(C.DATA, "savings_reconciliation.csv")
+    if not os.path.exists(src):
+        raise SystemExit("Missing data/M_savings_reconciliation.csv — run "
                          "savings_reconciliation.py first.")
     df = pd.read_csv(src).set_index("year")
     defl = consumption_deflator().reindex(df.index)
@@ -171,9 +188,14 @@ def plot_indices(Y, Cc, s):
                    label="real disposable income (2019=100)")
     l2, = ax1.plot(d, 100 * Cc[d] / base_c, color=C.C_ORANGE, lw=2.4, marker="o", ms=3,
                    label="real consumption (2019=100)")
-    ax1.axvline(2021.5, color="grey", ls="--", lw=1)
+    ax1.axvline(2022.15, color="grey", ls="--", lw=1.2)   # Russia invades, Feb 2022
+    ax1.text(2022.3, ax1.get_ylim()[1], "Russia invades\nUkraine (Feb 2022)",
+             fontsize=7.5, color="grey", va="top", ha="left")
     ax1.set_ylabel("index, 2019 = 100")
     ax1.set_xlabel("year")
+    import matplotlib.ticker as mticker
+    ax1.xaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax1.tick_params(axis="x", labelrotation=45, labelsize=8)
     l3, = ax2.plot(d, s[d], color=C.C_HOT, lw=1.8, ls=":", marker="s", ms=3,
                    label="saving rate (right)")
     ax2.set_ylabel("saving rate (%)", color=C.C_HOT)
@@ -183,7 +205,7 @@ def plot_indices(Y, Cc, s):
     ax1.set_title("Real income rose modestly; real consumption lagged\n"
                   "euro-area households — the COVID gap, then a persistent wedge",
                   fontweight="bold")
-    C.savefig(fig, "real_income_consumption.png")
+    C.savefig(fig, "N2_real_income_consumption.png")
 
 
 def plot_consumption_function(Y, Cc, a, b, pre):
@@ -215,7 +237,7 @@ def plot_consumption_function(Y, Cc, a, b, pre):
     ax.set_title("Post-2022 consumption sits BELOW the pre-COVID line\n"
                  "a downward shift, not movement along the curve", fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
-    C.savefig(fig, "real_consumption_function.png")
+    C.savefig(fig, "N_real_consumption_function.png")
 
 
 if __name__ == "__main__":

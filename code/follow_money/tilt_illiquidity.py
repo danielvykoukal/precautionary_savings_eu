@@ -70,10 +70,15 @@ def _tilt_bars(ax, df, ylabel):
     colors = ["#117a65" if v >= 0 else cm.C_RED for v in df["illiq_tilt"]]
     ax.bar(df["year"], df["illiq_tilt"], color=colors, width=0.8, zorder=2)
     ax.axhline(0, color="black", lw=0.9)
-    ax.axvline(2021.5, color="grey", ls="--", lw=1)
+    ax.axvline(2022.54, color="grey", ls="--", lw=1)   # ECB's first hike: Jul 2022
+    ax.text(2022.65, ax.get_ylim()[1], "ECB starts hiking\n(Jul 2022)", fontsize=7.5,
+            color="grey", va="top", ha="left")
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:,.0f}"))
     ax.set_ylabel(ylabel)
     ax.set_xlabel("year")
+    import matplotlib.ticker as mticker
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax.tick_params(axis="x", labelrotation=45, labelsize=8)
 
 
 def plot_vs_saving(df):
