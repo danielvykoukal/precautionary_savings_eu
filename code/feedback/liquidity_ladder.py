@@ -57,6 +57,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 REPORT = []
 
 TIER_LABELS = ["T1 instant (cash, overnight)",
@@ -195,7 +211,7 @@ def plot_stocks(df, geo):
     ax.legend(frameon=False, fontsize=8, loc="center left", bbox_to_anchor=(1.01, 0.5))
     C.caveat(fig, "Stocks (nasa_10_f_bs). Dashed line = broad sellable-fast (T1+T2+T3). "
                   "T4 is mostly insurance/pension entitlements + unlisted business equity.")
-    C.savefig(fig, "liquidity_ladder_stocks.png")
+    C.savefig(fig, "G_liquidity_ladder_stocks.png")
 
 
 def plot_flows(df, geo):
@@ -214,7 +230,7 @@ def plot_flows(df, geo):
     ax.legend(frameon=False, fontsize=8, loc="upper left")
     C.caveat(fig, "Flows (nasa_10_f_tr). After 2022 the cash (T1) flow collapses but T2/T3 "
                   "surge: the buffer moved up the ladder, staying sellable-fast.")
-    C.savefig(fig, "liquidity_ladder_flows.png")
+    C.savefig(fig, "G2_liquidity_ladder_flows.png")
 
 
 def main():

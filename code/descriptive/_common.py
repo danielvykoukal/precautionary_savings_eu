@@ -138,6 +138,17 @@ def mark_periods(ax, year_axis=False, shade=True, invasion=True, labels=True, zl
                 ha="center", va="top", fontsize=7.5, color="#5d6d7e")
         ax.text(_xpos("2022-11-15", year_axis), top, "war + energy\n+ ECB hikes",
                 ha="center", va="top", fontsize=7.5, color="#a04000")
+    # every year on the x-axis (rotated), so no years are hidden
+    import matplotlib.ticker as _mtick
+    import matplotlib.dates as _mdates
+    if year_axis:
+        ax.xaxis.set_major_locator(_mtick.MultipleLocator(1))
+    else:
+        ax.xaxis.set_major_locator(_mdates.YearLocator(1))
+        ax.xaxis.set_major_formatter(_mdates.DateFormatter("%Y"))
+    for _lb in ax.get_xticklabels():
+        _lb.set_rotation(45)
+        _lb.set_fontsize(8)
     return ax
 
 

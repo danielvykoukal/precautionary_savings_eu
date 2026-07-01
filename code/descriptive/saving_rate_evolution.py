@@ -21,6 +21,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 REPORT = []
 COUNTRIES = ["DE", "FR", "IT", "ES", "NL", "BE", "AT", "FI", "IE", "PT", "EL",
              "PL", "CZ", "SK", "HU", "SI", "EE", "LV", "LT", "SE", "DK"]
@@ -90,7 +106,7 @@ def main():
     # all 21 countries; the euro-area average is the black dotted line (see footnote)
     C.caveat(fig, "Eurostat tec00131. Grey = all 21 countries; coloured = highlighted North (cool) "
                   "vs South (warm) economies and the euro-area average. Ranking is persistent.")
-    C.savefig(fig, "saving_rate_evolution.png")
+    C.savefig(fig, "O_saving_rate_evolution.png")
 
     # North-South gap over time (highlighted North avg minus South avg)
     north, south = ["DE", "NL", "SE", "AT", "FI", "DK"], ["IT", "ES", "EL", "PT"]

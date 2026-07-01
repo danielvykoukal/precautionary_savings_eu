@@ -36,6 +36,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 REPORT = []
 
 # ECB BSI series keys (outstanding amounts, EUR, working-day & seasonally adj.)
@@ -118,7 +134,7 @@ def main():
     ax.legend(frameon=False, fontsize=9, loc="upper left")
     C.caveat(fig, "Euro-area M1/M2/M3 YoY growth (ECB BSI / FRED). M1 surged at the "
                   "ZLB/COVID and fell as rates rose — instant money is the most rate-sensitive.")
-    C.savefig(fig, "money_supply_growth.png")
+    C.savefig(fig, "H_money_supply_growth.png")
 
     out = pd.DataFrame(series)
 
@@ -150,7 +166,7 @@ def main():
         ax.legend(frameon=False, fontsize=8.5, loc="upper left")
         C.caveat(fig, "ECB BSI outstanding amounts. As rates rose post-2022 (dashed line), "
                       "M1 dipped while term/notice (M2-M1) widened — money moved up the term ladder.")
-        C.savefig(fig, "money_supply_by_term.png")
+        C.savefig(fig, "H2_money_supply_by_term.png")
         ann.to_csv(os.path.join(C.DATA, "money_supply_by_term.csv"))
 
     # ---- link to the household saving rate ----

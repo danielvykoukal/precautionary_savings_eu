@@ -28,6 +28,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 try:
     from statsmodels.tsa.filters.hp_filter import hpfilter
 except Exception:
@@ -114,7 +130,7 @@ def main():
     C.caveat(fig, "HP filter (λ=1600) with the 2020-21 COVID forced-saving quarters EXCLUDED "
                   "(interpolated), so the trend reflects behaviour, not the lockdown spike -- which "
                   "instead appears as the large positive cycle in the lower panel.")
-    C.savefig(fig, "structural_vs_cyclical.png")
+    C.savefig(fig, "O2_structural_vs_cyclical.png")
 
     out = pd.DataFrame({"saving": saving, "trend": trend, "cycle": cycle})
     out.to_csv(os.path.join(C.DATA, "structural_vs_cyclical.csv"))

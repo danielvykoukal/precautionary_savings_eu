@@ -36,6 +36,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 try:
     import statsmodels.api as sm
 except Exception:
@@ -189,7 +205,7 @@ def main():
     ax.legend(frameon=False, fontsize=8.5, loc="upper left")
     C.caveat(fig, "Composite = mean z of expected unemployment + intended saving (+ VIX when "
                   "FRED is reachable). It co-moves with, and helps predict, the realised saving rate.")
-    C.savefig(fig, "forward_looking_composite.png")
+    C.savefig(fig, "J_forward_looking_composite.png")
 
     fig, ax = plt.subplots(figsize=(7.5, 4.6))
     colors = [C.C_COOL if k <= 0 else C.C_HOT for k in ll["lead_quarters"]]
@@ -198,7 +214,7 @@ def main():
     ax.set_xlabel("lead k (quarters); k>0 = composite leads saving")
     ax.set_ylabel("corr(saving_t, composite_(t-k))")
     ax.set_title("Does expected caution lead realised saving?", fontweight="bold")
-    C.savefig(fig, "forward_looking_leadlag.png")
+    C.savefig(fig, "J2_forward_looking_leadlag.png")
 
     common.join(ll.set_index("lead_quarters")["corr"], how="left").to_csv(
         os.path.join(C.DATA, "forward_looking.csv"))

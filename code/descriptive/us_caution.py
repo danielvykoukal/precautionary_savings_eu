@@ -29,6 +29,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import _common as C
+
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
 from saving_composition_evolution import finstock_shares
 
 REPORT = []
@@ -116,7 +132,7 @@ def main():
     ax.legend(frameon=False, fontsize=8.5, ncol=2, loc="upper left")
     C.caveat(fig, "US: OECD financial accounts (S1M households); euro area: Eurostat nasa_10_f_bs. "
                   "'Risky' = equity & investment-fund shares (F5); 'non-risky' = deposits (F2).")
-    C.savefig(fig, "us_vs_ea_caution.png")
+    C.savefig(fig, "L3_us_vs_ea_caution.png")
 
     out = {}
     if us is not None:

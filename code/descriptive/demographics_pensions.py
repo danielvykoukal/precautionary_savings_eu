@@ -29,6 +29,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import _common as C
+
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
 from saving_composition_evolution import finstock_shares
 
 REPORT = []
@@ -140,7 +156,7 @@ def main():
     C.caveat(fig, "Eurostat demo_pjanind (old-age dependency) + tec00131 saving + nasa_10_f_bs "
                   "(F6 share as a funded-pension proxy). Cross-section, latest year; descriptive.")
     fig.tight_layout()
-    C.savefig(fig, "demographics_pensions.png")
+    C.savefig(fig, "O6_demographics_pensions.png")
 
     rows = [{"geo": g, "old_age_dep": dep.get(g), "f6_share": f6.get(g),
              "saving": saving.get(g)} for g in COUNTRIES]

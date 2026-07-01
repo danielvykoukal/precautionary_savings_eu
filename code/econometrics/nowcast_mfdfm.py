@@ -135,6 +135,10 @@ def plot(dates, act, nc, rw):
                  "differenced MFDFM, genuine real-time vintages (target withheld)",
                  fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
+    import matplotlib.dates as mdates
+    ax.xaxis.set_major_locator(mdates.YearLocator(1))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    plt.setp(ax.get_xticklabels(), rotation=45, fontsize=8)
     fig.tight_layout()
     fig.savefig(os.path.join(D.FIG, "P_nowcast_mfdfm.png"), bbox_inches="tight")
     plt.close(fig)

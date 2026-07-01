@@ -117,6 +117,10 @@ def plot(df, dates, preds, acts):
     ax.set_title("Bridge nowcast vs the realised euro-area saving rate\n"
                  "quarterly, monthly leads aggregated to the quarter", fontweight="bold")
     ax.legend(frameon=False, fontsize=9, loc="upper left")
+    import matplotlib.dates as mdates
+    ax.xaxis.set_major_locator(mdates.YearLocator(1))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    plt.setp(ax.get_xticklabels(), rotation=45, fontsize=8)
     fig.tight_layout()
     fig.savefig(os.path.join(D.FIG, "P_nowcast_bridge.png"), bbox_inches="tight")
     plt.close(fig)

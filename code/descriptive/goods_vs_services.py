@@ -26,6 +26,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 REPORT = []
 
 
@@ -131,7 +147,7 @@ def main():
     C.caveat(fig, "Eurostat nama_10_fcs, real volumes (2019=100). Services rebounded after reopening "
                   "while goods faded; that goods weakness is part of why overall consumption — and the "
                   "saving rate — stayed high. Nominal services spending is higher still (services inflation).")
-    C.savefig(fig, "goods_vs_services.png")
+    C.savefig(fig, "O4_goods_vs_services.png")
 
     c.join(saving.rename("saving")).to_csv(os.path.join(C.DATA, "goods_vs_services.csv"))
     with open(os.path.join(C.DATA, "goods_vs_services.md"), "w") as f:

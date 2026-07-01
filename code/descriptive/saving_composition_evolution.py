@@ -27,6 +27,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 REPORT = []
 COUNTRIES = ["DE", "FR", "IT", "ES"]
 
@@ -133,7 +149,7 @@ def main():
     C.caveat(fig, "Eurostat nasa_10_f_bs (stocks) -- the same household balance sheet as the liquidity "
                   "ladder, cut by RISK not liquidity: 'risky' = equity & funds (F5), 'non-risky' = "
                   "deposits (F2). The risky share rose ~8 pp over the decade, overtaking deposits ~2021.")
-    C.savefig(fig, "saving_composition_evolution.png")
+    C.savefig(fig, "O5_saving_composition_evolution.png")
 
     # ---- figure 2: cross-country risky share (latest) ----
     rows = [(ea_geo.replace("EA20", "Euro area"), ea["risky_F5"].iloc[-1])]
@@ -151,7 +167,7 @@ def main():
                  "risky-asset share of household wealth (latest)", fontweight="bold")
     C.caveat(fig, "Eurostat nasa_10_f_bs (stocks), F5 share of total financial assets. Southern "
                   "economies tend to hold less in market-exposed equity & funds.")
-    C.savefig(fig, "risky_share_by_country.png")
+    C.savefig(fig, "O7_risky_share_by_country.png")
 
     ea.to_csv(os.path.join(C.DATA, "saving_composition_evolution.csv"))
     with open(os.path.join(C.DATA, "saving_composition_evolution.md"), "w") as f:

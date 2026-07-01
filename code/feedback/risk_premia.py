@@ -32,6 +32,22 @@ import matplotlib.pyplot as plt
 
 import _common as C
 
+# --- run from the flattened repo layout: top-level data/ & figures/, tagged CSVs
+import os as _os, glob as _glob
+C.ROOT = _os.path.dirname(_os.path.dirname(C.HERE))
+C.ROOT_DATA = _os.path.join(C.ROOT, "data")
+C.DATA = _os.path.join(C.ROOT, "data")
+C.FIG = _os.path.join(C.ROOT, "figures")
+_ORC = C.root_csv
+def _TRC(name, required=True):
+    import pandas as _pd
+    if not _os.path.exists(_os.path.join(C.ROOT_DATA, name)):
+        _h = _glob.glob(_os.path.join(C.ROOT_DATA, "?_" + name))
+        if _h:
+            return _pd.read_csv(_h[0])
+    return _ORC(name, required)
+C.root_csv = _TRC
+
 REPORT = []
 INVASION = pd.Timestamp("2022-02-24")
 
@@ -181,7 +197,7 @@ def main():
     axB.legend(frameon=False, fontsize=8, loc="upper left")
     C.caveat(fig, "Euro-area risk premia vs the GPR index. Spreads/implied vol jump with "
                   "geopolitical tension (Feb-2022 line); shaded = COVID and the energy/hiking window.")
-    C.savefig(fig, "risk_premia_vs_gpr.png")
+    C.savefig(fig, "I_risk_premia_vs_gpr.png")
 
     pd.DataFrame(rows).to_csv(os.path.join(C.DATA, "risk_premia_summary.csv"), index=False)
     out = pd.concat(list(prem.values()) + ([gpr] if gpr is not None else []), axis=1)
